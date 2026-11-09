@@ -1,0 +1,106 @@
+work_record:
+  id: wrk_20261107_193000_m33
+  timestamp: '2026-11-07T19:30:00Z'
+  intent:
+    task: "Milestone 3.3: RoPE Coordinate Normalization & Parity (HuggingFace ↔ GGUF)"
+    phase: "feature_development"
+    persona: programmer
+    model: nvidia/nemotron-3-ultra-550b-a55b
+    complexity_triggers:
+      - "mathematical_permutation"
+      - "cross_format_alignment"
+      - "gguf_metadata_extraction"
+      - "cli_integration"
+  execution:
+    steps:
+      - step: "Create RoPE engine module src/wdiff/engine/rope.py"
+        status: done
+        evidence: "Implemented deinterleave_rope(), interleave_rope(), is_rope_tensor() with involution property"
+        outcome: "Correctly inverts GGML interleaved coordinate pairs to HF split-half format for 2D matrices and 1D bias vectors"
+      - step: "Update GGUFReader with metadata extraction in src/wdiff/readers/gguf_reader.py"
+        status: done
+        evidence: "Added get_metadata(), head_count, head_count_kv properties reading from GGUF fields (parts[-1])"
+        outcome: "GGUF attention metadata (n_heads, n_kv_heads, key_length) now accessible for RoPE parity"
+      - step: "Integrate RoPE parity in diff engine src/wdiff/engine/diff.py"
+        status: done
+        evidence: "Added rope_parity=True parameter to diff_models() and _run_paired_buffer(); applies deinterleave_rope to GGUF tensors for attn_q/attn_k when cross-format"
+        outcome: "Restores bit-for-bit parity (Cosine=1.0000) between HF safetensors and GGUF checkpoints"
+      - step: "Add CLI flag --no-rope-parity in src/wdiff/cli.py"
+        status: done
+        evidence: "Added argparse flag; defaults to enabled (rope_parity=True); --no-rope-parity disables correction"
+        outcome: "Users can opt out of RoPE normalization for raw weight diffs"
+      - step: "Create comprehensive TDD test suite tests/engine/test_rope_parity.py"
+        status: done
+        evidence: "16 tests: involution roundtrip (2D/1D), GQA KV heads, bias vectors, false divergence elimination, is_rope_tensor detection, GGUF metadata extraction, cross-format diff with/without parity, CLI flag"
+        outcome: "All test scenarios verified; synthetic GGUF with GGML permutation correctly handled"
+      - step: "Fix existing tests for fixtures without GGML permutation"
+        status: done
+        evidence: "Updated test_cross_format_identical_safetensors_and_gguf and test_deep_diff_cross_format_unmodified to use rope_parity=False"
+        outcome: "Existing test suite compatible with new default behavior"
+      - step: "Run full test suite and lint checks"
+        status: done
+        evidence: "159 tests pass; ruff check/format clean"
+        outcome: "All verification gates VERIFIED"
+  artifacts:
+    - { type: file, path: src/wdiff/engine/rope.py, verified: true }
+    - { type: file, path: src/wdiff/readers/gguf_reader.py, verified: true }
+    - { type: file, path: src/wdiff/engine/diff.py, verified: true }
+    - { type: file, path: src/wdiff/cli.py, verified: true }
+    - { type: file, path: src/wdiff/engine/__init__.py, verified: true }
+    - { type: file, path: tests/engine/test_rope_parity.py, verified: true }
+    - { type: file, path: tests/engine/test_diff.py, verified: true }
+    - { type: file, path: AGENTS.md, verified: true }
+  learned:
+    patterns:
+      - "GGML RoPE permutation: reshape(n_heads, 2, d_head/2, d_in) -> swapaxes(1,2) -> reshape; inverse: reshape(n_heads, d_head/2, 2, d_in) -> swapaxes(1,2) -> reshape"
+      - "GGUF metadata stored in fields OrderedDict with ReaderField; value in parts[-1] not data"
+      - "Fixture models (model_a.safetensors + model_a.gguf) are both in HF format - no GGML permutation applied during test fixture generation"
+      - "Default rope_parity=True correct for real cross-format diffs; tests using fixtures need rope_parity=False"
+      - "Fallback head dimension inference: try common d_head values (128, 64, 256, 96, 32) when metadata missing"
+      - "1D bias vectors use identical permutation logic along axis 0"
+    dead_ends:
+      - "Initial attempt to read metadata from field.data failed; correct source is field.parts[-1][0]"
+      - "GGUFWriter.add_head_count(8) writes value 3 to data but 8 to parts[-1]; parts is authoritative"
+      - "Subprocess.run without check=False triggers PLW1510 lint warning"
+    promoted_to_skill_kb: []
+  next:
+    - "Milestone 3.4: Cross-shard tensor name normalization improvements"
+    - "Milestone 3.5: LoRA adapter support for sharded models"
+  verification:
+    claims:
+      - claim: "All 159 tests pass (16 new RoPE parity tests + 143 existing)"
+        evidence: "pytest tests/ -q output: 159 passed in 12.39s"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Lint clean: ruff check . and ruff format --check . pass"
+        evidence: "ruff check . && ruff format --check . both pass with 0 errors"
+        method: STATIC
+        status: VERIFIED
+      - claim: "deinterleave_rope(interleave_rope(W)) == W (involution)"
+        evidence: "test_rope_involution_roundtrip_2d and test_rope_involution_roundtrip_1d pass with rtol=1e-6"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "GGUF metadata extraction works (head_count, head_count_kv, key_length)"
+        evidence: "test_gguf_metadata_head_count_extraction and test_gguf_reader_properties pass"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "RoPE parity eliminates false divergence (Cosine 1.0 vs ~0.01 without)"
+        evidence: "test_false_divergence_elimination and test_diff_models_synthetic_gguf_with_rope_parity pass"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "is_rope_tensor correctly identifies Q/K projections across naming conventions"
+        evidence: "test_attn_q_weight, test_attn_k_weight, test_non_rope_tensors all pass"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Cross-format diff with rope_parity=True achieves Cosine ≈ 1.0 on attention projections"
+        evidence: "test_diff_models_cross_format_rope_parity and test_diff_models_synthetic_gguf_with_rope_parity pass"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "CLI --no-rope-parity flag works correctly"
+        evidence: "test_cli_no_rope_parity_flag and test_cli_default_rope_parity_enabled pass"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "GQA (unequal Q/KV heads) handled correctly"
+        evidence: "test_rope_gqa_kv_heads passes with n_q=32, n_kv=8"
+        method: RUNTIME
+        status: VERIFIED

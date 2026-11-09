@@ -1,0 +1,41 @@
+project_prefix: "WDIFF"
+
+fields:
+  - id: "auto"
+  - timestamp: "auto"
+  - intent:
+      task: "required"
+      phase: "required"
+      persona: "required"
+      complexity_triggers: "optional"
+  - execution:
+      steps: "required"
+  - artifacts: "optional"
+  - learned:
+      patterns: "optional"
+      dead_ends: "optional"
+      promoted_to_skill_kb: "optional"
+  - next: "optional"
+  - verification:
+      claims: "required"
+
+verification_methods:
+  - STATIC
+  - RUNTIME
+  - TRACE
+  - HUMAN
+
+verification_statuses:
+  - VERIFIED
+  - VERIFIED_NEGATIVE
+  - INCONCLUSIVE
+  - RETRACTED
+  - DISPROVED
+  - CORRECTED
+  - PLANNED
+  - FAILED
+
+required_for:
+  - task_completion
+  - skill_promotion
+  - claim_in_ledger

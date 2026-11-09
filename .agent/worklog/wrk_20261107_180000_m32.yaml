@@ -1,0 +1,91 @@
+work_record:
+  id: wrk_20261107_180000_m32
+  timestamp: '2026-11-07T18:00:00Z'
+  intent:
+    task: "Milestone 3.2: Multi-File Sharded SafeTensors Reader (ShardedSafeTensorsReader)"
+    phase: "feature_development"
+    persona: programmer
+    model: nvidia/nemotron-3-ultra-550b-a55b
+    complexity_triggers:
+      - "multi_file_format_parsing"
+      - "lru_handle_pool"
+      - "memory_bounded_streaming"
+      - "cross_format_integration"
+  execution:
+    steps:
+      - step: "Create ShardedSafeTensorsReader in src/wdiff/readers/sharded_reader.py"
+        status: done
+        evidence: "Implemented LRU handle pool (max_open_handles=2), index parsing, dynamic weight map discovery, TensorReader protocol compliance"
+        outcome: "Sharded reader supports .safetensors.index.json, directories, shard files, auto-discovery"
+      - step: "Update detect_format() and get_reader() in src/wdiff/readers/__init__.py"
+        status: done
+        evidence: "Added 'sharded_safetensors' format type; auto-detection for index files, shard files, directories with/without index"
+        outcome: "get_reader() correctly routes to ShardedSafeTensorsReader"
+      - step: "Create comprehensive TDD test suite tests/readers/test_sharded.py"
+        status: done
+        evidence: "19 tests covering protocol, loading, LRU eviction, tensor_info, integration with inspect/diff"
+        outcome: "All test scenarios covered: index_json, directory, shard_file, auto_discover, LRU rotation, cross-format"
+      - step: "Verify LRU handle pool enforces max_open_handles=2"
+        status: done
+        evidence: "test_lru_handle_pool_rotation passes; sequential access to 3 shards evicts oldest, maintains 2 handles"
+        outcome: "Memory bounded: never more than 2 shard handles open simultaneously"
+      - step: "Run full test suite and lint checks"
+        status: done
+        evidence: "142 tests pass; ruff check . && ruff format --check . clean"
+        outcome: "All verification gates VERIFIED"
+      - step: "Manual integration test: diff_models() and inspect_model() with sharded readers"
+        status: done
+        evidence: "diff_models(model_a.index.json, model_b.index.json) works; inspect_model(model.index.json) works"
+        outcome: "Cross-format integration complete"
+  artifacts:
+    - { type: file, path: src/wdiff/readers/sharded_reader.py, verified: true }
+    - { type: file, path: src/wdiff/readers/__init__.py, verified: true }
+    - { type: file, path: tests/readers/test_sharded.py, verified: true }
+    - { type: file, path: AGENTS.md, verified: true }
+  learned:
+    patterns:
+      - "safetensors.SafeOpen is not iterable directly; must use .keys() to get tensor names (SIM118 exception)"
+      - "Auto-discovery of sharded models: check for *.safetensors.index.json in directory, or shard files without index"
+      - "LRU eviction with OrderedDict: move_to_end on access, popitem(last=False) on overflow, close evicted reader"
+      - "Format detection must check for any *.safetensors.index.json pattern, not just model.safetensors.index.json"
+      - "Sharded reader integrates seamlessly with existing diff_models() and inspect_model() via get_reader() factory"
+    dead_ends:
+      - "Initial attempt to iterate SafeOpen directly failed (TypeError); must use f.keys()"
+    promoted_to_skill_kb: []
+  next:
+    - "Milestone 3.3: Sharded GGUF Reader (if needed)"
+    - "Milestone 3.4: Cross-shard tensor name normalization improvements"
+  verification:
+    claims:
+      - claim: "All 142 tests pass (19 new sharded tests + 123 existing)"
+        evidence: "pytest tests/ -q output: 142 passed in 6.11s"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Lint clean: ruff check . and ruff format --check . pass"
+        evidence: "ruff check . && ruff format --check . both pass with 0 errors"
+        method: STATIC
+        status: VERIFIED
+      - claim: "ShardedSafeTensorsReader implements TensorReader protocol"
+        evidence: "test_sharded_reader_implements_protocol passes; isinstance(reader, TensorReader) == True"
+        method: STATIC
+        status: VERIFIED
+      - claim: "LRU handle pool enforces max_open_handles=2 with proper eviction"
+        evidence: "test_lru_handle_pool_rotation passes; 3 shards accessed sequentially, only 2 handles open at any time"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Auto-detection works for index.json, directories, shard files, auto-discovery"
+        evidence: "5 detection tests pass: index_json, directory_with_index, shard_file, directory_no_index, get_reader_routes"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Integration with diff_models() and inspect_model() works"
+        evidence: "test_sharded_integration_with_diff and test_sharded_integration_with_inspect pass; manual CLI test successful"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "tensor_info() returns metadata without loading weights"
+        evidence: "test_sharded_reader_tensor_info passes; shape/dtype/byte_size correct for tensors across shards"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "get_tensor() returns float32 arrays with correct values"
+        evidence: "test_sharded_reader_get_tensor passes; np.testing.assert_allclose matches original tensors"
+        method: RUNTIME
+        status: VERIFIED

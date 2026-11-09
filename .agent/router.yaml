@@ -1,0 +1,89 @@
+# Task Router Configuration
+# Per-project, per-task routing (persona + token budget)
+# Place at: .agent/router.yaml
+
+routes:
+  # Cybersec / Exploit Research
+  - task: "cve_research"
+    description: "CVE analysis, primitive hunting, exploit chain building"
+    budget_tokens: 150000
+    persona: "hackbot"
+
+  - task: "primitive_hunt"
+    description: "Vulnerability primitive discovery and validation"
+    budget_tokens: 100000
+    persona: "hackbot"
+
+  - task: "chain_builder"
+    description: "Exploit chain construction and validation"
+    budget_tokens: 200000
+    persona: "hackbot"
+
+  - task: "validation"
+    description: "Pessimistic review, evidence verification, PoC validation"
+    budget_tokens: 50000
+    persona: "hackbot"
+
+  # Web Research
+  - task: "web_research"
+    description: "External research, documentation lookup, CVE database queries"
+    budget_tokens: 50000
+    persona: "learner"
+
+  - task: "documentation_lookup"
+    description: "API docs, framework guides, specification reading"
+    budget_tokens: 30000
+    persona: "learner"
+
+  # Coding / Implementation
+  - task: "coding"
+    description: "Implementation, refactoring, feature development"
+    budget_tokens: 80000
+    persona: "programmer"
+
+  - task: "refactor"
+    description: "Code refactoring, architecture improvements"
+    budget_tokens: 100000
+    persona: "programmer"
+
+  - task: "debugging"
+    description: "Bug reproduction, root cause analysis, fix validation"
+    budget_tokens: 60000
+    persona: "programmer"
+
+  # Quick Tasks
+  - task: "quick_patch"
+    description: "Small fixes, typo corrections, config changes"
+    budget_tokens: 10000
+    persona: "programmer"
+
+  - task: "config_change"
+    description: "Config updates, env vars, dependency updates"
+    budget_tokens: 5000
+    persona: "programmer"
+
+  # Research / Learning
+  - task: "deep_research"
+    description: "Deep technical research, paper reading, architecture analysis"
+    budget_tokens: 150000
+    persona: "learner"
+
+  - task: "architecture_analysis"
+    description: "System architecture review, design decisions"
+    budget_tokens: 100000
+    persona: "explorer"
+
+  # Exploration / Audit
+  - task: "codebase_audit"
+    description: "Unknown codebase investigation, architecture mapping"
+    budget_tokens: 100000
+    persona: "explorer"
+
+  - task: "root_cause_analysis"
+    description: "Bug root cause, failure analysis, regression tracing"
+    budget_tokens: 80000
+    persona: "explorer"
+
+# Default for unknown tasks
+default:
+  budget_tokens: 20000

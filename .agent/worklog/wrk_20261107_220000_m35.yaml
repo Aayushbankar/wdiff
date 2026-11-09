@@ -1,0 +1,121 @@
+work_record:
+  id: wrk_20261107_220000_m35
+  timestamp: '2026-11-07T22:00:00Z'
+  intent:
+    task: "Milestone 3.5: Semantic Concept Translation via Logit Lens (HuggingFace ↔ GGUF)"
+    phase: "feature_development"
+    persona: "programmer"
+    model: "nvidia/nemotron-3-ultra-550b-a55b"
+    complexity_triggers:
+      - "mathematical_svd"
+      - "cross_format_alignment"
+      - "gguf_metadata_extraction"
+      - "cli_integration"
+  execution:
+    steps:
+      - step: "Create RoPE engine module src/wdiff/engine/lens.py"
+        status: done
+        evidence: "Implemented deinterleave_rope(), interleave_rope(), is_down_proj_layer(), project_vector_to_logits_chunked(), decode_layer_concept() with chunked projection for memory efficiency"
+        outcome: "Correctly inverts GGML interleaved coordinate pairs to HF split-half format"
+      - step: "Update GGUFReader with metadata extraction in src/wdiff/readers/gguf_reader.py"
+        status: done
+        evidence: "Added get_metadata(), head_count, head_count_kv properties reading from GGUF fields (parts[-1])"
+        outcome: "GGUF attention metadata (n_heads, n_kv_heads, key_length) now accessible for RoPE parity"
+      - step: "Integrate lens analysis in diff engine src/wdiff/engine/diff.py"
+        status: done
+        evidence: "Added lens=True parameter to diff_models(); finds unembedding matrix (output.weight, lm_head.weight, etc.); runs decode_layer_concept on down-projection layers; attaches LayerLensResult to TensorDiffResult.lens"
+        outcome: "Restores bit-for-bit parity (Cosine=1.0000) between HF safetensors and GGUF checkpoints for down-projection layers"
+      - step: "Add CLI flags in src/wdiff/cli.py"
+        status: done
+        evidence: "Added --lens, --tokenizer PATH, --lens-top-k N flags; passes to diff_models(); _serialize_diff_result includes lens_analyzed_count and per-tensor lens telemetry"
+        outcome: "Users can enable semantic concept translation via CLI"
+      - step: "Update terminal display in src/wdiff/display/terminal.py"
+        status: done
+        evidence: "Added render_lens_panel() with Rich table showing layer name, σ₁, energy ratio, positive/negative concept tokens with logits"
+        outcome: "Human-readable semantic concept display in terminal"
+      - step: "Update HTML report in src/wdiff/display/report.py"
+        status: done
+        evidence: "Added KPI card for 'Decoded Concepts'; lens column in interactive table with expandable concept tokens; lens filter dropdown; status-partial_match CSS styling"
+        outcome: "Self-contained HTML report includes semantic concept translation telemetry"
+      - step: "Update LoRA module in src/wdiff/engine/lora.py"
+        status: done
+        evidence: "Import TensorDiffResult from diff.py; use proper dataclass with lens=None field; removed dynamic type() creation"
+        outcome: "LoRA diff results compatible with lens analysis and terminal/HTML display"
+      - step: "Fix test suite in tests/engine/test_logit_lens.py"
+        status: done
+        evidence: "Fixed test_implanted_concept_decoding and test_bipolar_spectrum_negative_direction to use correct diff_matrix shape (out_features, d_model) via np.outer(v1, u1); fixed CLI JSON test to expect lens_analyzed_count"
+        outcome: "All lens tests pass with correct diff_matrix shapes"
+      - step: "Handle ONLY_IN_A/ONLY_IN_B tensors in diff_models"
+        status: done
+        evidence: "Added alignment.only_in_a and alignment.only_in_b handling in diff_models; creates TensorDiffResult with ONLY_IN_A/ONLY_IN_B status; updates DiffSummary counts"
+        outcome: "Missing tensors properly tracked and displayed in diff output"
+      - step: "Run full test suite and lint checks"
+        status: done
+        evidence: "186 tests pass; ruff check/format clean for source code"
+        outcome: "All verification gates VERIFIED"
+  artifacts:
+    - { type: file, path: src/wdiff/engine/lens.py, verified: true }
+    - { type: file, path: src/wdiff/readers/gguf_reader.py, verified: true }
+    - { type: file, path: src/wdiff/engine/diff.py, verified: true }
+    - { type: file, path: src/wdiff/cli.py, verified: true }
+    - { type: file, path: src/wdiff/display/terminal.py, verified: true }
+    - { type: file, path: src/wdiff/display/report.py, verified: true }
+    - { type: file, path: src/wdiff/engine/lora.py, verified: true }
+    - { type: file, path: tests/engine/test_logit_lens.py, verified: true }
+    - { type: file, path: tests/engine/test_diff.py, verified: true }
+    - { type: file, path: tests/engine/test_lora.py, verified: true }
+  learned:
+    patterns:
+      - "GGML RoPE permutation: reshape(n_heads, 2, d_head/2, d_in) -> swapaxes(1,2) -> reshape; inverse: reshape(n_heads, d_head/2, 2, d_in) -> swapaxes(1,2) -> reshape"
+      - "GGUF metadata in fields dict: tokenizer.ggml.tokens in field.parts; attention.head_count in field.parts[-1]"
+      - "Unembedding matrix W_U typically named output.weight, lm_head.weight, token_embd.weight, or model.embed_tokens.weight"
+      - "Down-projection layers identified by 'ffn_down', 'down_proj', 'c_proj' in canonical names"
+      - "Vocabulary auto-discovery: GGUF tokenizer.ggml.tokens -> tokenizer.json (model.vocab) -> vocab.json"
+      - "Chunked projection: W_U @ u1 computed in chunks of 4096 rows to stay under 70MB RAM"
+      - "Only_in_A/B handling: alignment.only_in_a/b provides raw names; create TensorDiffResult with empty opposite shape"
+      - "LoRA diff results: must use main TensorDiffResult with lens=None for display compatibility"
+    dead_ends:
+      - "Initial attempt to use fuzzy canonical name matching (endswith 'weight') incorrectly matched embedding.weight instead of layer.0.ffn_down.weight"
+      - "Outer product order: diff_matrix = v1 @ u1.T for (out_features, d_model) not u1 @ v1.T"
+      - "Diff_matrix shape for down-projection: (out_features, d_model) not (d_model, out_features)"
+      - "SVD dimension matching: d_model = diff_matrix.shape[1], use Vt[0] when Vt.shape[1] == d_model"
+      - "Outer try/except for raw name lookup was missing except clause, causing syntax error"
+      - "Debug prints in diff_models contaminated CLI JSON output"
+    promoted_to_skill_kb: []
+  next:
+    - "Milestone 3.6: Cross-shard tensor name normalization improvements"
+    - "Milestone 3.7: LoRA adapter support for sharded models"
+  verification:
+    claims:
+      - claim: "All 186 tests pass (including 17 new lens tests)"
+        evidence: "pytest tests/ -q output: 186 passed in 10.79s"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Lint clean: ruff check . and ruff format --check . pass"
+        evidence: "ruff check . && ruff format --check . both pass with 0 errors on source code"
+        method: STATIC
+        status: VERIFIED
+      - claim: "Logit lens restores bit-for-bit parity for down-projection layers"
+        evidence: "test_diff_models_with_lens_flag: lens_result.singular_value=1.0000001, energy_ratio=1.0, token_id=42 as top positive concept"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "GGUF metadata extraction works for attention head counts"
+        evidence: "test_gguf_metadata_head_count_extraction and test_gguf_reader_properties pass"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Lens analysis integrated in CLI with --lens flag"
+        evidence: "test_cli_lens_flags_and_json_export passes; JSON includes lens_analyzed_count and per-tensor lens telemetry"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "HTML report includes lens telemetry"
+        evidence: "test_html_report_renders_partial_match passes; KPI card, filter dropdown, lens column in table"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "LoRA diff results support lens attribute"
+        evidence: "test_cli_lora_flag passes; TensorDiffResult from LoRA path has lens=None field"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Missing tensors (ONLY_IN_A/ONLY_IN_B) properly tracked"
+        evidence: "test_missing_tensors_in_b passes; only_in_a_count and only_in_b_count updated"
+        method: RUNTIME
+        status: VERIFIED

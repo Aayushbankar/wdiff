@@ -1,0 +1,118 @@
+work_record:
+  id: wrk_20261107_210000_m34
+  timestamp: '2026-11-07T21:00:00Z'
+  intent:
+    task: "Milestone 3.4: Partial Shape Matching & Vocabulary Expansion Slicing"
+    phase: "feature_development"
+    persona: programmer
+    model: nvidia/nemotron-3-ultra-550b-a55b
+    complexity_triggers:
+      - "tensor_slicing"
+      - "partial_matching"
+      - "vocabulary_expansion"
+      - "cross_format_integration"
+  execution:
+    steps:
+      - step: "Implement PartialMatchInfo dataclass and _try_partial_match() in src/wdiff/engine/diff.py"
+        status: done
+        evidence: "Added single-axis variance detection, common-prefix slicing, expansion telemetry extraction"
+        outcome: "Handles vocabulary expansion (e.g., 128K→129.3K tokens) by computing metrics on shared prefix"
+      - step: "Update TensorDiffResult with partial_info field and DiffSummary with partial_match_count"
+        status: done
+        evidence: "New fields: partial_info: PartialMatchInfo | None, partial_match_count: int"
+        outcome: "Protocol supports partial matches alongside MATCH/SHAPE_MISMATCH/ONLY_IN_A/ONLY_IN_B"
+      - step: "Integrate partial matching in diff_models() for shape-mismatched tensors"
+        status: done
+        evidence: "Calls _try_partial_match for single-axis variance; falls back to SHAPE_MISMATCH for multi-axis"
+        outcome: "Seamlessly handles vocabulary expansion while preserving exact match behavior"
+      - step: "Update terminal display for PARTIAL_MATCH status"
+        status: done
+        evidence: "render_diff_table shows '128K→129.3K × 4096' format; detect_anomalies warns on vocabulary expansion"
+        outcome: "Rich terminal output with yellow PARTIAL_MATCH badge and expansion warnings"
+      - step: "Update HTML report with partial match support"
+        status: done
+        evidence: "KPI card for Partial Matches; status-partial_match CSS; PARTIAL_MATCH in filter dropdown; partial_info in table JSON"
+        outcome: "Self-contained HTML report includes vocabulary expansion telemetry"
+      - step: "Update CLI JSON serialization"
+        status: done
+        evidence: "_serialize_diff_result includes partial_info and partial_match_count in summary"
+        outcome: "CLI --json outputs complete partial match telemetry"
+      - step: "Create comprehensive TDD test suite tests/engine/test_partial_shape.py"
+        status: done
+        evidence: "10 tests: 2D expansion, truncation, 1D vectors, multi-axis fallback, different ndim fallback, drift detection, deep analysis, summary counts, CLI JSON, HTML report"
+        outcome: "All scenarios covered with synthetic fixtures"
+      - step: "Run full test suite and lint checks"
+        status: done
+        evidence: "169 tests pass; ruff check/format clean"
+        outcome: "All verification gates VERIFIED"
+  artifacts:
+    - { type: file, path: src/wdiff/engine/diff.py, verified: true }
+    - { type: file, path: src/wdiff/display/terminal.py, verified: true }
+    - { type: file, path: src/wdiff/display/report.py, verified: true }
+    - { type: file, path: src/wdiff/cli.py, verified: true }
+    - { type: file, path: tests/engine/test_partial_shape.py, verified: true }
+    - { type: file, path: AGENTS.md, verified: true }
+  learned:
+    patterns:
+      - "Single-axis variance slicing: find diff_axes, slice common prefix at min(shape_a[axis], shape_b[axis]), extract expanded tail for telemetry"
+      - "Vocabulary expansion typically along axis 0: embedding.weight (V, D) where V grows; bias vectors (V,) similarly"
+      - "Expansion telemetry: extra_count (ΔV), extra_norm (Frobenius of new tokens), extra_mean/std for distribution analysis"
+      - "Multi-axis or different ndim variance correctly falls back to SHAPE_MISMATCH (preserves safety)"
+      - "RoPE parity and partial matching compose: deinterleave GGUF tensors before slicing common prefix"
+      - "Terminal shape display: '128,000→129,280 × 4,096' format with comma separators"
+      - "HTML report includes partial_info in table data for JavaScript access"
+      - "LoRA result wrapper needs partial_match_count for summary panel compatibility"
+    dead_ends:
+      - "Initial attempt nested _try_partial_match inside diff_models caused IndentationError; moved to module level"
+      - "Forgot partial_match_count in LoRA Summary wrapper causing AttributeError in test_cli_lora_flag"
+      - "Unused variables common_size, extra_count in _format_partial_shape flagged by ruff F841"
+    promoted_to_skill_kb: []
+  next:
+    - "Milestone 3.5: LoRA adapter support for sharded models"
+    - "Milestone 3.6: Cross-format RoPE parity + partial matching integration tests"
+  verification:
+    claims:
+      - claim: "All 169 tests pass (10 new partial shape tests + 159 existing)"
+        evidence: "pytest tests/ -q output: 169 passed in 14.78s"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Lint clean: ruff check . and ruff format --check . pass"
+        evidence: "ruff check . && ruff format --check . both pass with 0 errors"
+        method: STATIC
+        status: VERIFIED
+      - claim: "Partial match correctly computes metrics on shared vocabulary prefix"
+        evidence: "test_partial_match_vocabulary_expansion_2d: Cosine=1.0, ΔF=0.0 for shared 128 tokens"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Expansion telemetry captured (extra_count, extra_norm, extra_mean, extra_std)"
+        evidence: "test_partial_match_vocabulary_expansion_2d: partial_info.extra_count=32, extra_norm>0"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Multi-axis variance and different ndim fall back to SHAPE_MISMATCH"
+        evidence: "test_multi_axis_mismatch_falls_back_to_shape_mismatch and test_different_ndim_falls_back_to_shape_mismatch pass"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Truncated vocabulary (model_a larger) correctly identifies extra_source='model_a'"
+        evidence: "test_partial_match_truncated_vocabulary: extra_count=32, extra_source='model_a'"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "1D bias vectors handled correctly"
+        evidence: "test_partial_match_1d_vectors: common_shape=(128,), differing_axis=0, extra_count=32"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Deep analysis (--deep) works with partial matches"
+        evidence: "test_partial_match_with_deep_analysis: spectral and taxonomy populated for PARTIAL_MATCH"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "CLI --json serializes partial_info with all telemetry fields"
+        evidence: "test_cli_json_serializes_partial_info: JSON includes common_shape, differing_axis, extra_count, extra_source, extra_norm, extra_mean, extra_std"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "HTML report renders partial match KPI card, status badge, and filter dropdown"
+        evidence: "test_html_report_renders_partial_match: 'Partial Matches', 'PARTIAL_MATCH', 'status-partial_match' in HTML"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Terminal display shows vocabulary expansion with arrow notation and warning"
+        evidence: "render_diff_table shows '128,000→129,280 × 4,096'; detect_anomalies emits '⚠ Vocabulary expansion'"
+        method: RUNTIME
+        status: VERIFIED

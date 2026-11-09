@@ -1,0 +1,515 @@
+{
+  "benchmark": "Base vs Uncensored Abliteration",
+  "model_a": "/mnt/legion/experimental_stuff/idkv2/LFM3-1.7B-Q4_K_M.gguf",
+  "model_b": "/mnt/work/projects/wolvie/models/LFM3-1.7B-Uncensored-AD-Q4_K_M.gguf",
+  "elapsed_seconds": 386.43,
+  "peak_ram_mb": 4302.53,
+  "total_tensors": 287,
+  "matched_count": 287,
+  "partial_match_count": 0,
+  "mismatched_shape_count": 0,
+  "mean_frobenius": 0.042027,
+  "max_frobenius": 0.115392,
+  "max_frobenius_tensor": "blk.13.shortconv.out_proj.weight",
+  "min_cosine": 0.993328,
+  "taxonomy_distribution": {
+    "Unmodified": 134,
+    "Low-Rank Adapter (LoRA/DPO)": 107,
+    "Stochastic SGD Noise": 26,
+    "Surgical Rank-1 Ablation": 17,
+    "Full-Rank Continual Learning": 3
+  },
+  "lens_analyzed_count": 24,
+  "lens_layers": [
+    {
+      "layer": "blk.0.ffn_down.weight",
+      "sigma_1": 0.2769,
+      "energy_ratio": 0.2752,
+      "positive_concepts": [
+        {
+          "token": " finite",
+          "logit": 0.087
+        },
+        {
+          "token": " fave",
+          "logit": 0.083
+        },
+        {
+          "token": "\u00e8\u0129\u00b4",
+          "logit": 0.083
+        },
+        {
+          "token": " \u00ea\u00b3\u00a7",
+          "logit": 0.082
+        },
+        {
+          "token": " bl",
+          "logit": 0.079
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": "aru",
+          "logit": -0.097
+        },
+        {
+          "token": "osc",
+          "logit": -0.087
+        },
+        {
+          "token": "\u00eb\u00b3\u0126",
+          "logit": -0.083
+        },
+        {
+          "token": " nets",
+          "logit": -0.083
+        },
+        {
+          "token": "\u00e6\u0143\u00a2",
+          "logit": -0.082
+        }
+      ]
+    },
+    {
+      "layer": "blk.1.ffn_down.weight",
+      "sigma_1": 0.5541,
+      "energy_ratio": 0.3428,
+      "positive_concepts": [
+        {
+          "token": "orp",
+          "logit": 0.109
+        },
+        {
+          "token": " gen",
+          "logit": 0.097
+        },
+        {
+          "token": "*\\",
+          "logit": 0.094
+        },
+        {
+          "token": "gens",
+          "logit": 0.089
+        },
+        {
+          "token": " reporting",
+          "logit": 0.088
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": "SK",
+          "logit": -0.09
+        },
+        {
+          "token": " conform",
+          "logit": -0.087
+        },
+        {
+          "token": "\u00e3\u0124\u00b9\u00e3\u0124\u00a4",
+          "logit": -0.086
+        },
+        {
+          "token": " throw",
+          "logit": -0.083
+        },
+        {
+          "token": "oldt",
+          "logit": -0.083
+        }
+      ]
+    },
+    {
+      "layer": "blk.10.ffn_down.weight",
+      "sigma_1": 3.9336,
+      "energy_ratio": 0.9885,
+      "positive_concepts": [
+        {
+          "token": "target",
+          "logit": 0.092
+        },
+        {
+          "token": "invalid",
+          "logit": 0.09
+        },
+        {
+          "token": "\u00e6\u012b\u00b9",
+          "logit": 0.089
+        },
+        {
+          "token": "alt",
+          "logit": 0.088
+        },
+        {
+          "token": "ol",
+          "logit": 0.088
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": "mani",
+          "logit": -0.1
+        },
+        {
+          "token": " synchron",
+          "logit": -0.098
+        },
+        {
+          "token": " chose",
+          "logit": -0.096
+        },
+        {
+          "token": " prest",
+          "logit": -0.094
+        },
+        {
+          "token": "mania",
+          "logit": -0.09
+        }
+      ]
+    },
+    {
+      "layer": "blk.11.ffn_down.weight",
+      "sigma_1": 4.0908,
+      "energy_ratio": 0.9862,
+      "positive_concepts": [
+        {
+          "token": " dining",
+          "logit": 0.1
+        },
+        {
+          "token": "\u00e3\u0125\u00ac\u00e3\u0125\u0125\u00e3\u0124\u00b9",
+          "logit": 0.092
+        },
+        {
+          "token": "zi",
+          "logit": 0.091
+        },
+        {
+          "token": " granite",
+          "logit": 0.089
+        },
+        {
+          "token": " clic",
+          "logit": 0.088
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": " unfortunately",
+          "logit": -0.1
+        },
+        {
+          "token": "Mot",
+          "logit": -0.1
+        },
+        {
+          "token": "mot",
+          "logit": -0.09
+        },
+        {
+          "token": "\u00e2\u0122\u0133t",
+          "logit": -0.09
+        },
+        {
+          "token": "unc",
+          "logit": -0.089
+        }
+      ]
+    },
+    {
+      "layer": "blk.12.ffn_down.weight",
+      "sigma_1": 3.9143,
+      "energy_ratio": 0.9883,
+      "positive_concepts": [
+        {
+          "token": " unfortunately",
+          "logit": 0.132
+        },
+        {
+          "token": " Unfortunately",
+          "logit": 0.113
+        },
+        {
+          "token": "Unfortunately",
+          "logit": 0.095
+        },
+        {
+          "token": " impro",
+          "logit": 0.094
+        },
+        {
+          "token": " uncomfortable",
+          "logit": 0.093
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": " Events",
+          "logit": -0.106
+        },
+        {
+          "token": " viz",
+          "logit": -0.102
+        },
+        {
+          "token": " Spin",
+          "logit": -0.096
+        },
+        {
+          "token": " Bin",
+          "logit": -0.093
+        },
+        {
+          "token": " lift",
+          "logit": -0.092
+        }
+      ]
+    },
+    {
+      "layer": "blk.13.ffn_down.weight",
+      "sigma_1": 3.8146,
+      "energy_ratio": 0.9799,
+      "positive_concepts": [
+        {
+          "token": " impossible",
+          "logit": 0.137
+        },
+        {
+          "token": " neither",
+          "logit": 0.127
+        },
+        {
+          "token": " prohibited",
+          "logit": 0.127
+        },
+        {
+          "token": " impossibility",
+          "logit": 0.126
+        },
+        {
+          "token": " unfortunately",
+          "logit": 0.124
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": "\u00e4\u00bb\u00a5\u00e4\u00b8\u012d",
+          "logit": -0.087
+        },
+        {
+          "token": "\u00c3\u00bcg",
+          "logit": -0.087
+        },
+        {
+          "token": " Round",
+          "logit": -0.087
+        },
+        {
+          "token": " Bin",
+          "logit": -0.086
+        },
+        {
+          "token": " Built",
+          "logit": -0.085
+        }
+      ]
+    },
+    {
+      "layer": "blk.14.ffn_down.weight",
+      "sigma_1": 3.7338,
+      "energy_ratio": 0.9771,
+      "positive_concepts": [
+        {
+          "token": " prohibited",
+          "logit": 0.162
+        },
+        {
+          "token": " unsafe",
+          "logit": 0.148
+        },
+        {
+          "token": " unfortunately",
+          "logit": 0.147
+        },
+        {
+          "token": " illegal",
+          "logit": 0.145
+        },
+        {
+          "token": " impossible",
+          "logit": 0.142
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": " relat",
+          "logit": -0.096
+        },
+        {
+          "token": " flu",
+          "logit": -0.095
+        },
+        {
+          "token": " ultr",
+          "logit": -0.088
+        },
+        {
+          "token": " Eg",
+          "logit": -0.087
+        },
+        {
+          "token": " bic",
+          "logit": -0.086
+        }
+      ]
+    },
+    {
+      "layer": "blk.15.ffn_down.weight",
+      "sigma_1": 3.7515,
+      "energy_ratio": 0.9802,
+      "positive_concepts": [
+        {
+          "token": " illegal",
+          "logit": 0.152
+        },
+        {
+          "token": " cannot",
+          "logit": 0.139
+        },
+        {
+          "token": " prohibited",
+          "logit": 0.135
+        },
+        {
+          "token": "\u00e2\u013c",
+          "logit": 0.131
+        },
+        {
+          "token": " inability",
+          "logit": 0.124
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": " Mar",
+          "logit": -0.11
+        },
+        {
+          "token": " bi",
+          "logit": -0.105
+        },
+        {
+          "token": " intuitive",
+          "logit": -0.103
+        },
+        {
+          "token": " flu",
+          "logit": -0.102
+        },
+        {
+          "token": " specification",
+          "logit": -0.097
+        }
+      ]
+    },
+    {
+      "layer": "blk.16.ffn_down.weight",
+      "sigma_1": 3.5165,
+      "energy_ratio": 0.9788,
+      "positive_concepts": [
+        {
+          "token": " cannot",
+          "logit": 0.131
+        },
+        {
+          "token": "\u00e2\u013c",
+          "logit": 0.124
+        },
+        {
+          "token": " prohibited",
+          "logit": 0.124
+        },
+        {
+          "token": " illegal",
+          "logit": 0.123
+        },
+        {
+          "token": "ua",
+          "logit": 0.123
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": " immers",
+          "logit": -0.092
+        },
+        {
+          "token": " hoping",
+          "logit": -0.09
+        },
+        {
+          "token": " perfect",
+          "logit": -0.09
+        },
+        {
+          "token": " flu",
+          "logit": -0.087
+        },
+        {
+          "token": " earth",
+          "logit": -0.086
+        }
+      ]
+    },
+    {
+      "layer": "blk.17.ffn_down.weight",
+      "sigma_1": 3.5709,
+      "energy_ratio": 0.9853,
+      "positive_concepts": [
+        {
+          "token": " variation",
+          "logit": 0.101
+        },
+        {
+          "token": " Pil",
+          "logit": 0.092
+        },
+        {
+          "token": " ster",
+          "logit": 0.091
+        },
+        {
+          "token": "pr\u00c3\u00bc",
+          "logit": 0.09
+        },
+        {
+          "token": " subcase",
+          "logit": 0.088
+        }
+      ],
+      "negative_concepts": [
+        {
+          "token": " sorry",
+          "logit": -0.134
+        },
+        {
+          "token": " cannot",
+          "logit": -0.127
+        },
+        {
+          "token": "ua",
+          "logit": -0.116
+        },
+        {
+          "token": "\u00e2\u013c",
+          "logit": -0.114
+        },
+        {
+          "token": " inability",
+          "logit": -0.112
+        }
+      ]
+    }
+  ]
+}

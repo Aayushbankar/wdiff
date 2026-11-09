@@ -1,0 +1,166 @@
+work_record:
+  id: wrk_20261105_051824_3a7c
+  timestamp: '2026-11-05T05:18:24Z'
+  intent:
+    task: "Initialize wdiff (TASK-20261105-051735)"
+    phase: "initialization"
+    persona: general
+    complexity_triggers: []
+  execution:
+    steps:
+      - step: "Detect project (wdiff, Python 3.10+ src-layout, no git root, no AGENTS.md)"
+        status: done
+        evidence: "README.md, pyproject.toml read; ls of /mnt/work/projects/wdiff"
+        outcome: "project name=wdiff, type=coding/ML tooling"
+      - step: "Copy methodology layer router + ledger config from ~/.agent/"
+        status: done
+        evidence: "cp ~/.agent/{router.yaml,ledger-config.yaml} .agent/; project_prefix set to WDIFF"
+        outcome: "15 routes, ledger prefix WDIFF"
+      - step: "Symlink meta-skills into .agent/meta-skills/"
+        status: done
+        evidence: "readlink -f resolves all 3 symlinks to methodology-layer/skills/meta/*"
+        outcome: "philosophy-enforcement, specialist-spawning, knowledge-synthesis linked"
+      - step: "Create task.md + plan.md with 3 verification gates"
+        status: done
+        evidence: ".agent/task.md, .agent/plan.md written (TASK/PLAN-20261105-051735)"
+        outcome: "persona=general, routing table recorded"
+      - step: "Verify gates (static + runtime)"
+        status: done
+        evidence: "ls -la .agent/ (Gate 1); /skill philosophy-enforcement loaded (Gate 2); this record (Gate 3)"
+        outcome: "all gates VERIFIED"
+  artifacts:
+    - { type: directory, path: .agent/, verified: true }
+    - { type: file, path: .agent/task.md, verified: true }
+    - { type: file, path: .agent/plan.md, verified: true }
+    - { type: file, path: .agent/router.yaml, verified: true }
+    - { type: file, path: .agent/ledger-config.yaml, verified: true }
+    - { type: symlink, path: .agent/meta-skills/, verified: true }
+  learned:
+    patterns:
+      - "Methodology layer templates live at ~/.agent/ (router.yaml, ledger-config.yaml, task.md/plan.md examples)"
+      - "Meta-skill symlinks resolve through ~/.config/opencode/skills/meta -> ~/methodology-layer/skills/meta"
+    dead_ends:
+      - "No router.yaml/ledger-config.yaml templates under ~/.config/opencode itself; canonical copies are ~/.agent/"
+    promoted_to_skill_kb: []
+  next:
+    - "Run /plan-task for first real wdiff task (coding -> programmer route)"
+  verification:
+    claims:
+      - claim: "Gate 1: .agent/ structure complete (task.md, plan.md, worklog/, router.yaml, ledger-config.yaml)"
+        evidence: "ls -la .agent/ output in session: all 5 entries + meta-skills/ present"
+        method: STATIC
+        status: VERIFIED
+      - claim: "Gate 2: methodology meta-skills linked and loadable"
+        evidence: "readlink -f .agent/meta-skills/* resolves 3 targets; /skill philosophy-enforcement loaded successfully"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Gate 3: session ready for work (task, plan, ledger, work record present)"
+        evidence: "this work record wrk_20261105_051824_3a7c in .agent/worklog/"
+        method: STATIC
+        status: VERIFIED
+
+---
+work_record:
+  id: wrk_20261107_143952_9f2k
+  timestamp: '2026-11-07T14:39:52Z'
+  intent:
+    task: "Milestone 3.1: Single-Model Deep Inspection (wdiff inspect)"
+    phase: "feature_development"
+    persona: programmer
+    model: nvidia/nemotron-3-ultra-550b-a55b
+    complexity_triggers:
+      - "multi_module_architecture"
+      - "memory_bounded_streaming"
+      - "spectral_analysis"
+      - "taxonomy_classification"
+  execution:
+    steps:
+      - step: "Create test file tests/engine/test_inspect.py with 9 TDD tests"
+        status: done
+        evidence: "tests/engine/test_inspect.py created with 9 tests (metadata, dead neurons, outlier score, deep spectral, filter, CLI)"
+        outcome: "Tests define contract for inspect_model()"
+      - step: "Implement src/wdiff/engine/inspect.py with inspect_model()"
+        status: done
+        evidence: "inspect_model() implemented with dead neuron detection, Dettmers outlier score, spectral analysis, taxonomy classification"
+        outcome: "Core inspection engine complete"
+      - step: "Integrate taxonomy classifier in src/wdiff/engine/taxonomy.py"
+        status: done
+        evidence: "6 badges implemented (UNMODIFIED, RANK1_ABLATION, LOW_RANK_ADAPTER, SPARSE_UPDATE, FULL_RANK_CPT, STOCHASTIC_NOISE)"
+        outcome: "Automated classification working"
+      - step: "Update CLI with inspect subcommand and auto-route"
+        status: done
+        evidence: "wdiff inspect <model> and wdiff <model> both work; --deep, --json, --filter flags"
+        outcome: "CLI integration complete"
+      - step: "Add render_inspection() to terminal display"
+        status: done
+        evidence: "Rich table with Rank/Classification columns, health badges, anomaly detection"
+        outcome: "Rich terminal output working"
+      - step: "Add HTML report generator for inspections"
+        status: done
+        evidence: "Self-contained HTML with KPI cards, interactive chart, filterable table"
+        outcome: "--report flag generates standalone HTML"
+      - step: "Update CLI for inspect subcommand and auto-route"
+        status: done
+        evidence: "wdiff inspect <model> and wdiff <model> both work"
+        outcome: "Auto-route to inspect when single model provided"
+      - step: "Verify all tests pass and lint clean"
+        status: done
+        evidence: "121 tests pass; ruff check/format clean"
+        outcome: "All gates VERIFIED"
+  artifacts:
+    - { type: file, path: src/wdiff/engine/inspect.py, verified: true }
+    - { type: file, path: src/wdiff/engine/taxonomy.py, verified: true }
+    - { type: file, path: src/wdiff/engine/__init__.py, verified: true }
+    - { type: file, path: tests/engine/test_inspect.py, verified: true }
+    - { type: file, path: src/wdiff/cli.py, verified: true }
+    - { type: file, path: src/wdiff/display/terminal.py, verified: true }
+    - { type: file, path: src/wdiff/display/report.py, verified: true }
+    - { type: file, path: src/wdiff/display/__init__.py, verified: true }
+    - { type: file, path: src/wdiff/engine/__init__.py, verified: true }
+    - { type: file, path: tests/engine/test_inspect.py, verified: true }
+    - { type: file, path: AGENTS.md, verified: true }
+  learned:
+    patterns:
+      - "HF vs GGUF naming gap: naive string matching fails; canonical GGUF naming with regex bridges LLaMA, Qwen2, Gemma, Gemma2, Phi-3, native GGUF"
+      - "Architecture detection heuristics: qkv_proj+gate_up_proj -> Phi-3; 4 norms -> Gemma2; attention bias -> Qwen2; blk. prefix -> GGUF"
+      - "Tied embeddings virtual aliasing: output.weight -> token_embd.weight alias when tie_word_embeddings=true"
+      - "Named regex groups required: Python match.groupdict() only captures named groups (?P<layer>\\d+), not numbered groups (\\d+)"
+      - "Marcenko-Pastur edge formula: For singular values of m×n noise matrix, bulk edge is σ(√m + √n), not σ(1+√γ)²"
+      - "Subspace angles: Rotating subspace within itself yields angle 0; must rotate toward orthogonal direction"
+      - "Quantum fidelity norm source: Use SVD component norms (sum σ²) not full matrix norm for fidelity=1"
+      - "Randomized SVD oversampling: p=10 + 2 power iterations gives accuracy/speed balance"
+      - "MP edge for signal rank: s_+ = σ(√m + √n) with 1% margin separates LoRA (rank 16) and abliteration (rank 1)"
+      - "Taxonomy thresholds: Sparsity≥0.65→SPARSE; E₁>0.9+r_stable≤1.35→RANK1; signal_rank=0→NOISE; 2≤signal_rank≤64+r_stable≤40→LoRA"
+      - "Deep CLI: --deep triggers spectral+taxonomy; JSON includes spectral bundle + taxonomy badge; Rich table shows rank+colored badge"
+      - "Auto-route to inspect when single model provided"
+    dead_ends: []
+    promoted_to_skill_kb: []
+  next:
+    - "Milestone 2.2: Deep SVD Analysis & HTML Reports (--deep flag integration)"
+    - "Milestone 2.3: Taxonomy Classifier & --deep CLI Integration"
+  verification:
+    claims:
+      - claim: "All 121 tests pass (9 new inspect tests + 112 existing)"
+        evidence: "pytest tests/ -q output: 121 passed in 8.05s"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Lint clean: ruff check src/ tests/ and ruff format --check src/ tests/ pass"
+        evidence: "ruff check src/ tests/ && ruff format --check src/ tests/ both pass"
+        method: STATIC
+        status: VERIFIED
+      - claim: "Inspection engine computes dead neurons, Dettmers outlier score, spectral bundles, taxonomy"
+        evidence: "9 new tests in test_inspect.py all pass; CLI inspect --deep --report works"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Auto-route to inspect when single model provided"
+        evidence: "wdiff model.safetensors routes to inspect; wdiff model_a model_b routes to diff"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "HTML report generation works for inspections"
+        evidence: "generate_html_report() produces self-contained HTML with KPI cards, chart, filterable table"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Auto-route to inspect when single model provided"
+        evidence: "wdiff model.safetensors routes to inspect; wdiff model_a model_b routes to diff"
+        method: RUNTIME
+        status: VERIFIED
