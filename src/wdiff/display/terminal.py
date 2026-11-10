@@ -137,21 +137,19 @@ def render_diff_table(
         row_styles=["", "dim"],
         pad_edge=False,
     )
-    table.add_column(
-        "Layer", style="#d1d5db", min_width=18, ratio=3, overflow="fold", no_wrap=False
-    )
-    table.add_column("Shape", justify="right", style="#9ca3af", min_width=10, ratio=2)
-    table.add_column("Rel. ΔF", justify="left", style="#e5e7eb", min_width=18, ratio=2)
-    table.add_column("Cosine Sim", justify="right", style="#93c5fd", width=10)
-    table.add_column("Max |Δ|", justify="right", style="#fcd34d", width=10)
+    table.add_column("Layer", style="#d1d5db", min_width=22, overflow="fold", no_wrap=False)
+    table.add_column("Shape", justify="right", style="#9ca3af")
+    table.add_column("Rel. ΔF", justify="left", style="#e5e7eb")
+    table.add_column("Cosine Sim", justify="right", style="#93c5fd")
+    table.add_column("Max |Δ|", justify="right", style="#fcd34d")
 
     if has_deep:
-        table.add_column("Rank", justify="center", width=10)
+        table.add_column("Rank", justify="center")
         if show_geometry:
-            table.add_column("Geometry", justify="center", width=14)
-        table.add_column("Classification", justify="center", width=16)
+            table.add_column("Geometry", justify="center")
+        table.add_column("Classification", justify="center")
 
-    table.add_column("Status", justify="center", width=10)
+    table.add_column("Status", justify="center")
 
     rows_to_show = result.tensor_results
     if max_rows and len(rows_to_show) > max_rows:
@@ -563,8 +561,8 @@ def render_inspection_table(result: ModelInspectionResult, max_rows: int | None 
         row_styles=["", "dim"],
         pad_edge=False,
     )
-    table.add_column("Layer", style="#d1d5db", min_width=20, ratio=2, overflow="fold")
-    table.add_column("Shape", justify="right", style="#9ca3af", min_width=8, ratio=1)
+    table.add_column("Layer", style="#d1d5db", min_width=22, overflow="fold")
+    table.add_column("Shape", justify="right", style="#9ca3af", min_width=10)
     table.add_column("Dtype", justify="center")
     table.add_column("Params", justify="right")
     table.add_column("L2 Norm", justify="right", style="#e879f9")
