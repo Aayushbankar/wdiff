@@ -289,9 +289,7 @@ def render_summary_panel(result: DiffResult) -> Panel:
         Text.assemble(("Min Cosine: ", "dim"), (f"{summary.min_cosine_value:.6f}", "bold #93c5fd")),
     )
 
-    inner = Group(
-        Text(legacy, style="dim"), Text(""), header, Text(""), models, Text(""), stats, metrics
-    )
+    inner = Group(header, Text(""), models, Text(""), stats, metrics)
 
     class _SummaryRenderable:
         def __init__(self, renderable, text: str) -> None:
@@ -376,12 +374,82 @@ def detect_anomalies(result: DiffResult) -> list[str]:
     return anomalies
 
 
+def render_architecture_topology(result: DiffResult) -> Panel | None:
+    """Render a clean Unicode architecture topology pipeline."""
+    if not result.tensor_results:
+        return None
+
+    import re
+
+    names = [t.name.lower() for t in result.tensor_results]
+
+    has_embed = any("embed" in n or "wte" in n or "token" in n for n in names)
+    has_head = any("head" in n or "output" in n for n in names)
+
+    layer_indices = set()
+    for n in names:
+        m = re.search(r"(?:layers?|blk|h)\.(\d+)\.", n)
+        if m:
+            layer_indices.add(int(m.group(1)))
+
+    num_blocks = (
+        len(layer_indices) if layer_indices else (1 if any("attn" in n for n in names) else 0)
+    )
+    has_attn = any("attn" in n or "_q" in n or "_k" in n or "_v" in n for n in names)
+    has_mlp = any(
+        "ffn" in n or "mlp" in n or "gate" in n or "up" in n or "down" in n for n in names
+    )
+
+    flow = Text()
+    flow.append("  ", "")
+    if has_embed:
+        flow.append("[Input Embedding]", "bold #38bdf8")
+        flow.append(" ──► ", "#475569")
+
+    block_desc = []
+    if has_attn:
+        block_desc.append("Attn (Q, K, V, O)")
+    if has_mlp:
+        block_desc.append("MLP (Gate, Up, Down)")
+    sub_desc = " ─► ".join(block_desc) if block_desc else "Transform"
+
+    block_range = (
+        f"0..{max(layer_indices)}" if len(layer_indices) > 1 else ("0" if layer_indices else "0..N")
+    )
+    flow.append(f"[Block {block_range}: {sub_desc}]", "bold #a855f7")
+
+    if has_head:
+        flow.append(" ──► ", "#475569")
+        flow.append("[Unembedding Head]", "bold #10b981")
+
+    sub_text = Text()
+    sub_text.append(f"  {result.summary.matched_count} layers matched", "dim #94a3b8")
+    if num_blocks > 0:
+        sub_text.append(
+            f"  ·  {num_blocks} transformer block{'s' if num_blocks > 1 else ''}", "dim #94a3b8"
+        )
+    if _has_deep_data(result):
+        sub_text.append("  ·  spectral forensics & subspace geometry active", "dim #38bdf8")
+
+    body = Group(flow, sub_text)
+    return Panel(
+        body,
+        title="[bold #38bdf8]Architecture Topology[/]",
+        border_style="#334155",
+        padding=(0, 1),
+    )
+
+
 def render_diff(result: DiffResult, console: Console | None = None) -> None:
     if console is None:
         console = Console()
 
     console.print()
     console.print(render_summary_panel(result))
+
+    topo = render_architecture_topology(result)
+    if topo:
+        console.print(topo)
 
     dist = _taxonomy_distribution(result.summary, result)
     if dist:
