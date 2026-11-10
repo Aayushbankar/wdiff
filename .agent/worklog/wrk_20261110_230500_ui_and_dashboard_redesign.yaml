@@ -1,0 +1,75 @@
+work_record:
+  id: wrk_20261110_230500_ui_and_dashboard_redesign
+  timestamp: '2026-11-10T17:35:00Z'
+  intent:
+    task: "Complete UI/UX overhaul of standalone HTML forensics reports and Rich terminal TUI"
+    phase: "ui_and_visual_overhaul"
+    persona: "designer_engineer"
+    model: "claude-3-7-sonnet-thinking"
+    complexity_triggers:
+      - "design_skills_integration"
+      - "interactive_architecture_topology_visualization"
+      - "subspace_geometry_and_svd_spectral_curve_drawer"
+      - "zero_external_network_compliance"
+  execution:
+    steps:
+      - step: "Install and apply frontend design skills"
+        status: done
+        evidence: "Applied anthropics/skills@frontend-design, leonxlnx/taste-skill@design-taste-frontend, and algorithmic-art principles"
+        outcome: "Replaced generic UI patterns with precision scientific instrument aesthetics (obsidian theme, hairline borders, semantic color hierarchy)"
+      - step: "Redesign standalone HTML report dashboard in src/wdiff/display/report.py"
+        status: done
+        evidence: "Implemented Interactive Transformer Architecture Topology Map, multi-view Spectral Landscape SVG chart, slide-over Layer Inspector Drawer with SVD eigenvalue decay curve plotted against Marcenko-Pastur noise floor threshold, Grassmannian subspace geometry gauge, and semantic logit lens concept cards"
+        outcome: "Dashboard is 100% self-contained, air-gapped, zero CDN/network dependencies, XSS sanitized"
+      - step: "Elevate Rich TUI terminal display in src/wdiff/display/terminal.py"
+        status: done
+        evidence: "Added clean ASCII/Unicode Architecture Topology header flow ([Input Embedding] -> [Block 0..N: Attn (Q,K,V,O) -> MLP (Gate,Up,Down)] -> [Unembedding Head]) and eliminated duplicate plain-text console header"
+        outcome: "Clean, high-density terminal interface matching lazygit/btop caliber"
+      - step: "Re-generate all visual screenshot and SVG assets"
+        status: done
+        evidence: "Captured docs/images/report_screenshot.png (193KB) and docs/images/inspect_screenshot.png (168KB) via headless Chromium; recorded docs/images/terminal_diff.svg (56KB) and docs/images/terminal_inspect.svg (55KB) via Rich console"
+        outcome: "Updated visual assets in docs/images/ reflecting new interactive topology and modern theme"
+      - step: "Update README.md with new visual tour highlights"
+        status: done
+        evidence: "Updated visual tour sections in README.md highlighting topology pipeline and inspector drawer"
+        outcome: "README accurately showcases new visual capabilities"
+      - step: "Run full verification gates"
+        status: done
+        evidence: "uv run ruff check src/ tests/ clean; uv run ruff format --check src/ tests/ clean; uv run --extra dev pytest tests/ -q passed 208/208"
+        outcome: "All quality gates 100% verified"
+  artifacts:
+    - { type: file, path: "src/wdiff/display/report.py", verified: true }
+    - { type: file, path: "src/wdiff/display/terminal.py", verified: true }
+    - { type: file, path: "README.md", verified: true }
+    - { type: file, path: "docs/images/report_screenshot.png", verified: true }
+    - { type: file, path: "docs/images/inspect_screenshot.png", verified: true }
+    - { type: file, path: "docs/images/terminal_diff.svg", verified: true }
+    - { type: file, path: "docs/images/terminal_inspect.svg", verified: true }
+  learned:
+    patterns:
+      - "Embedding JSON data payloads inside <script> with </ -> <\\/ and <script -> <\\script escaping prevents parser breakout without corrupting JSON evaluation"
+      - "Interactive SVG SVD curves with Marcenko-Pastur noise thresholds provide immediate visual intuition for why an intervention is classified as LoRA or rank-1 ablation"
+      - "Using slide-over drawers with backdrop blur allows deep telemetry inspection without losing position in the main layer table"
+    dead_ends:
+      - "Remote fonts or CDN imports are strictly disallowed by AGENTS.md air-gapped rule; relying on clean system sans-serif and monospace stacks ensures instantaneous rendering in disconnected environments"
+    promoted_to_skill_kb: []
+  next:
+    - "Ready for user review and git commit"
+  verification:
+    claims:
+      - claim: "Interactive HTML report dashboard renders transformer architecture topology, SVD spectral curves against MP noise edge, and subspace geometry"
+        evidence: "docs/diff_report.html generated and verified via headless Chromium screenshot (193KB)"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "All 208 pytest tests pass including all report and terminal display tests"
+        evidence: "pytest passed 208/208 in 25.83s with 0 warnings"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Code formatting and linting pass with zero errors"
+        evidence: "uv run ruff check src/ tests/ and uv run ruff format --check src/ tests/ both clean"
+        method: STATIC
+        status: VERIFIED
+      - claim: "HTML reports have zero external network requests"
+        evidence: "test_html_report_is_completely_self_contained verified passing"
+        method: RUNTIME
+        status: VERIFIED

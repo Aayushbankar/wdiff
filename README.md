@@ -1,90 +1,164 @@
-# `wdiff` 🔬
+# `wdiff` (`weight-diff`) 🔬
 ### *git diff, but for neural network weights.*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![PyPI Version](https://img.shields.io/pypi/v/weight-diff.svg?color=blue)](https://pypi.org/project/weight-diff/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Streaming heap](https://img.shields.io/badge/streaming%20heap-bounded%20by%20largest%20tensor-brightgreen.svg)](#-real-world-benchmark-results)
-[![Tests: 207 Passed](https://img.shields.io/badge/tests-207%20passed-success.svg)](tests/)
-
-**`wdiff`** is an ultra-fast, memory-bounded CLI and visual differential analyzer for Large Language Model checkpoints (`.safetensors`, `.gguf`, and sharded indices).
-
-It lets you inspect, measure, translate, and visualize model weights — detecting fine-tuning shifts, LoRA adapters, vocabulary expansions, safety abliterations, dead neurons, and quantization risks — **on consumer hardware with bounded streaming memory (peak anonymous heap scales with the largest tensor — measured ≈1.1 GB for a 235 MB tensor pair; see [benchmark results](#-real-world-benchmark-results) for process RSS on multi-GB checkpoints)**.
-
-> ⚠️ **Name collision notice**: the package name `wdiff` on PyPI belongs to an unrelated
-> Spanish spelling analyzer — **this project is not published there yet**. Until it is
-> released under a distinct name, install directly from GitHub (below). Do not use
-> `pip install wdiff` / `uvx wdiff`; they will install the wrong tool.
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Tests: 208 Passed](https://img.shields.io/badge/tests-208%20passed-success.svg)](tests/)
+[![Streaming Heap](https://img.shields.io/badge/heap%20bound-2T%20%2B%200.7GB-brightgreen.svg)](#-memory-model--resource-bounds)
+[![Zero GPU](https://img.shields.io/badge/compute-CPU%20only-orange.svg)](#)
 
 ```bash
-# Instant execution straight from GitHub with uv (no install or venv required)
-uvx --from git+https://github.com/Aayushbankar/wdiff wdiff base-model.gguf finetuned-model.gguf
-
-# Or standard pip install from GitHub
-pip install "git+https://github.com/Aayushbankar/wdiff.git"
-
-# Compare two models with SVD rank analysis and semantic concept decoding
+pip install weight-diff
 wdiff modelA.safetensors modelB.gguf --deep --lens --report diff_report.html
+```
 
-# Inspect a single model for dead neurons and quantization risks
-wdiff inspect model.gguf
+**`wdiff`** is an ultra-fast, memory-bounded CLI and visual forensics analyzer for Large Language Model weights (`.safetensors`, sharded indices, and `.gguf` quantizations).
+
+When comparing fine-tuned, pruned, abliterated, or merged checkpoints, standard benchmark evaluations (MMLU, GSM8K) are slow, non-deterministic, and cannot explain *what mechanically altered inside the matrices*. `wdiff` streams through raw checkpoint tensors on CPU, performing:
+
+- **Exact Weight Drift**: Relative Frobenius norm ($\Delta F$), cosine similarity, $L_\infty$, and $L_1$ metrics.
+- **Spectral Decomposition & Random Matrix Theory (`--deep`)**: Separates true structural updates from stochastic SGD noise via Marcenko-Pastur edge thresholds.
+- **Grassmannian Subspace Geometry**: Measures principal angles ($\theta_1 \dots \theta_k$), geodesic/chordal distance, and Uhlmann state fidelity between feature representations.
+- **Static Semantic Logit Lens (`--lens`)**: Multiplies weight delta singular vectors directly through the unembedding matrix ($W_U$) to decode which plain-English concepts the fine-tune promoted or suppressed — **with zero forward passes and zero GPU runtime**.
+- **Cross-Format Parity**: Automatically deinterleaves GGML rotational coordinates to match Hugging Face split-half RoPE layouts.
+- **Standalone Interactive HTML Dashboards (`--report`)**: Generates self-contained interactive reports with embedded SVG profile charts, live search, and zero external network requests.
+
+---
+
+## 🖥️ Visual Tour
+
+### 1. Terminal Forensics Interface (Rich TUI)
+High-resolution terminal output featuring an ASCII/Unicode **Transformer Architecture Topology flow**, relative delta distribution heatbars, spectral taxonomy classifications, coordinate alignment indicators, and anomaly warnings:
+
+![Terminal Diff Output](docs/images/terminal_diff.svg)
+
+### 2. Standalone Interactive HTML Report (`--report`)
+Self-contained single-file HTML reports featuring an **Interactive Transformer Architecture Topology Map**, multi-view **Spectral Landscape Charts**, live search & multi-filtering, and a slide-over **Layer Inspector Drawer** with SVD eigenvalue decay against Marcenko-Pastur noise floors, Grassmannian subspace geometry, and semantic logit lens cards. Completely air-gapped with zero remote CDN or external font dependencies:
+
+![HTML Forensics Dashboard](docs/images/report_screenshot.png)
+
+### 3. Single-Model Health & Quantization Readiness (`wdiff inspect`)
+Audit dead neurons, feature outlier spikes, and 4-bit quantization collapse risk in seconds with interactive norm distribution charts:
+
+![Inspection Report](docs/images/inspect_screenshot.png)
+
+---
+
+## 🚀 Installation & Quickstart
+
+The package is published on PyPI as **`weight-diff`** (the executable binary is invoked as **`wdiff`**):
+
+### Using `pip` or `uv`
+```bash
+# Recommended: Install into user environment
+pip install weight-diff
+
+# Or run instantly via uv without permanent installation
+uvx --from weight-diff wdiff modelA.safetensors modelB.safetensors
+
+# Or install as an isolated tool
+uv tool install weight-diff
+```
+
+### Install from Source
+```bash
+git clone https://github.com/Aayushbankar/wdiff.git
+cd wdiff
+uv sync --extra dev
+uv run wdiff --help
 ```
 
 ---
 
-## ⚡ Key Capabilities
+## 💡 Practical Workflows & Examples
 
-### 1. Dual-Model Differential Autopsy
-Compare any two checkpoints across HuggingFace SafeTensors and GGUF (`Q4_K_M`, `Q5_K_S`, `Q8_0`, etc.):
-- **Frobenius Delta ($\Delta F$) & Cosine Similarity**: Quantifies exact weight magnitude shift and directional alignment.
-- **Random Matrix Theory & Truncated SVD (`--deep`)**: Distinguishes between **Stochastic SGD noise**, **Low-Rank Adapters (LoRA/DPO)**, and **Surgical Rank-1 Ablations** (direction removal).
-- **Semantic Logit Lens (`--lens`)**: Multiplies the primary singular vector ($\sigma_1$) through the model's unembedding matrix ($W_U$) to decode which plain-English concepts the layer promotes or suppresses.
-- **RoPE Coordinate Parity**: Automatically de-interleaves GGML rotational coordinates to match HuggingFace split-half layout, eliminating false coordinate divergence.
-- **Partial Vocabulary Slicing**: Automatically detects single-axis vocabulary expansions (e.g., 128k → 129k tokens) and computes metrics on the shared prefix while recording expansion telemetry.
-- **Virtual LoRA Folding (`--lora`)**: Compares a base model against a virtual LoRA adapter ($W_0 + \alpha \Delta W$) on the fly without merging files to disk.
+### 1. Differential Autopsy (Base vs Uncensored / Fine-Tuned)
+Inspect what changed between a base model and its fine-tuned or abliterated successor:
+```bash
+wdiff Llama-3-8B.safetensors Llama-3-8B-Instruct.safetensors --deep --lens
+```
+*Detects whether safety guardrails were removed via Rank-1 abliteration or broad multi-rank continual learning, decoding suppressed tokens (e.g. `prohibited`, `unfortunately`, `impossible`).*
 
-### 2. Single-Model Deep Inspection
-Run forensic health checks on any checkpoint with zero GPU requirement:
-- **Dettmers Outlier Scoring**: Measures feature outlier spikes ($(\max|w| - \text{median}) / \text{MAD}$) to assess 4-bit quantization collapse risk.
-- **Dead Neuron Detection**: Identifies rows and columns with L2 norm $< 10^{-7}$.
-- **Architecture Auto-Detection**: Recognizes LLaMA, Qwen2, Gemma, Gemma2, Phi-3, and GGUF topologies.
-- **Interactive Visual Reports (`--report`)**: Generates self-contained HTML files containing interactive SVG profile charts, KPI summary cards, and filterable search tables.
+### 2. Cross-Format Diffing (Hugging Face SafeTensors vs Quantized GGUF)
+Diff an unquantized FP16 checkpoint against a quantized `Q4_K_M` or `Q8_0` GGUF file:
+```bash
+wdiff model_fp16.safetensors model_q4_k_m.gguf --deep
+```
+*`wdiff` automatically matches layer names across naming conventions, reverses GGUF Fortran memory ordering, dequantizes on the fly, and applies RoPE coordinate parity.*
+
+### 3. Virtual LoRA Adapter Inspection (`--lora`)
+Compare a base model against a virtual LoRA adapter ($W_0 + \frac{\alpha}{r} B A$) without merging files to disk:
+```bash
+wdiff base_model.safetensors --lora adapter.safetensors --deep --lens
+```
+*Automatically parses `adapter_config.json` for rank $r$ and $\alpha$, applying exact PEFT scaling.*
+
+### 4. Single-Model Health Audit (`wdiff inspect`)
+Check an unknown or hand-merged model for structural corruption before deployment:
+```bash
+wdiff inspect merged_model.safetensors --deep
+```
+*Scans for dead rows/columns ($L_2 < 10^{-7}$), computes Dettmers feature outlier scores, and estimates quantization readiness.*
+
+### 5. Generate Shareable HTML Reports
+```bash
+wdiff modelA.safetensors modelB.safetensors --deep --lens --report report.html
+```
+
+### 6. Pipeline Automation via JSON Output
+```bash
+wdiff modelA.safetensors modelB.safetensors --deep --json | jq '.summary'
+```
 
 ---
 
-## 🖥️ Terminal UI Preview
+## 🔬 Core Forensic Capabilities
 
-```
-╭────────────────────────────────── Summary ───────────────────────────────────╮
-│ Models: LFM3-1.7B-Q4_K_M.gguf (gguf) vs LFM3-1.7B-Uncensored-AD-Q4_K_M.gguf  │
-│ Duration: 33.35s | Matched: 287/287 tensors (100%)                           │
-│ Mean ΔF: 0.042027 | Max ΔF: 0.115392 | Min Cosine: 0.993328                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
+### 1. Spectral Analysis & Random Matrix Theory
+`wdiff` decomposes weight deltas $\Delta W = W_B - W_A$ using randomized SVD (Halko-Martinsson-Tropp with intermediate QR orthonormalization). To determine whether a weight shift represents intentional signal or stochastic training noise, it computes the theoretical **Marcenko-Pastur bulk noise edge**:
 
-┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳
-┃ Layer            ┃      Shape ┃   Rel. ΔF ┃ Cosine Sim ┃  Max |Δ| ┃   Rank   ┃
-┡━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇
-│ blk.11.ffn_down  │     2048 × │  ░░░░░░░░ │     0.9954 │   0.0629 │   s=3    │
-│ weight           │       7680 │    0.0962 │            │          │  e=1.3   │
-│ blk.12.ffn_down  │     2048 × │  ░░░░░░░░ │     0.9944 │   0.0505 │   s=16   │
-│ weight           │       7680 │    0.1062 │            │          │  e=1.4   │
-└──────────────────┴────────────┴───────────┴────────────┴──────────┴──────────┴
+$$s_+ = \hat{\sigma} \left(\sqrt{m} + \sqrt{n}\right)$$
 
-╭──────────────────────── Logit Lens Concept Decoding ─────────────────────────╮
-│ Layer: blk.11.ffn_down.weight | σ₁: 4.0908 | Energy: 98.62%                   │
-│   Promoted (+): dining (+0.10), granite (+0.09), clic (+0.09)                │
-│   Suppressed (-): unfortunately (-0.10), Mot (-0.10), unc (-0.09)            │
-╰──────────────────────────────────────────────────────────────────────────────╯
+where $\hat{\sigma}$ is estimated using the robust median absolute deviation ($\text{MAD} / 0.6745$). Singular values $\sigma_i > 1.01 \cdot s_+$ are categorized as true **signal rank**.
 
-Anomalies Detected:
-  ⚠ Rank-1 Ablation Detected: blk.11.ffn_down.weight (98% confidence)
-  ⚠ Rank-1 Ablation Detected: blk.12.ffn_down.weight (96% confidence)
-```
+### 2. Grassmannian Subspace Geometry
+Beyond raw magnitude drift, `wdiff` analyzes the rotation of top-$k$ feature subspaces on the Grassmannian manifold $\text{Gr}(k, m)$:
+- **Principal Angles** ($\theta_1 \le \dots \le \theta_k$): Computed via SVD of the subspace overlap matrix $M = U_A^T U_B$.
+- **Chordal Distance**: $d_{\text{chord}} = \sqrt{k - \|U_A^T U_B\|_F^2}$.
+- **Geodesic Distance**: $d_{\text{geo}} = \sqrt{\sum_{i=1}^k \theta_i^2}$.
+- **Uhlmann State Fidelity**: Quantum transition fidelity $\mathcal{F}(\rho_A, \rho_B) \in [0, 1]$ across low-rank states.
+- **Drift Warning**: Layers with $\theta_{\max} > 25^\circ$ indicate representation drift rather than pure gain scaling.
+
+### 3. Static Semantic Logit Lens
+For down-projection layers ($W_{\text{down}}$), `wdiff` extracts the primary singular vector $u_1$ of $\Delta W$ and projects it into vocabulary logit space through the model's unembedding matrix $W_U$:
+
+$$\text{logits} = W_U \cdot u_1$$
+
+Using chunked matrix multiplication ($4096$ rows per chunk) and min-heaps, `wdiff` decodes the top-$k$ positive (promoted) and negative (suppressed) semantic concepts in $<70$ MB RAM without executing model inference.
+
+### 4. RoPE Coordinate Parity
+Hugging Face splits RoPE coordinates into two halves $[x_0, \dots, x_{d/2-1}]$ and $[x_{d/2}, \dots, x_{d-1}]$, whereas GGML / GGUF interleaves them as pairs $[(x_0, x_1), (x_2, x_3), \dots]$. Comparing cross-format weights naively yields false divergence. `wdiff` automatically detects RoPE projection layers and applies adaptive coordinate deinterleaving:
+
+$$\text{deinterleave}: [n_{\text{heads}}, d_{\text{head}}/2, 2] \xrightarrow{\text{swapaxes}} [n_{\text{heads}}, 2, d_{\text{head}}/2]$$
+
+### 5. Automated Forensic Taxonomy
+Every layer delta is automatically classified into one of 6 structural categories:
+
+| Forensic Badge | Detection Criteria | Mechanical Meaning |
+|---|---|---|
+| `Unmodified` | $\Delta F < 10^{-6}$ and $\max|\Delta| < 10^{-7}$ | Parameter tensors are identical. |
+| `Surgical Rank-1 Ablation` | Primary Energy $> 90\%$ and $\text{rk}_{\text{st}} \le 1.35$ | Targeted direction zeroed out (e.g. Arditi et al. refusal abliteration). |
+| `Low-Rank Adapter (LoRA/DPO)` | $2 \le r_{\text{signal}} \le 64$ and $\text{rk}_{\text{st}} \le 40$ | Parameter update constrained to low-rank subspace. |
+| `Sparse Update (TIES/DARE)` | Sparsity $\ge 65\%$ ($|\Delta W| < 10^{-7}$) | Sparse pruning, fine-tune mask, or delta merging. |
+| `Full-Rank Continual Learning` | High signal rank and distributed energy | Unconstrained full-rank gradient updates across parameter space. |
+| `Stochastic SGD Noise` | $r_{\text{signal}} == 0$ | Perturbation lies entirely within the Marcenko-Pastur noise bulk. |
 
 ---
 
 ## 📊 Real-World Benchmark Results
 
-Tested across **19.6 Billion parameters** on a standard consumer CPU (Linux x86_64, memory bounded):
+Benchmarks run across **19.6 Billion parameters** on standard consumer CPU hardware (x86_64, Linux):
 
 | Model Architecture | Size | Parameter Count | Tensors | Time | Throughput | Dead Neurons | Outlier Layers |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -98,75 +172,75 @@ Tested across **19.6 Billion parameters** on a standard consumer CPU (Linux x86_
 | **LFM3-1.7B Uncensored (Q4_K_M)** | 1,079.8 MB | 1,728,801,600 | 287 | 36.06s | **47.9 M param/s** | 60 | 228 |
 | **SD-v1.5 VAE Decoder (SafeTensors)** | 9.3 MB | 2,445,063 | 134 | 0.11s | **21.3 M param/s** | 0 | 50 |
 
-*(See full methodology and findings in [`benchmarks/BENCHMARK_REPORT.md`](benchmarks/BENCHMARK_REPORT.md))*
+*(See detailed methodology and real-world abliteration case studies in [`benchmarks/BENCHMARK_REPORT.md`](benchmarks/BENCHMARK_REPORT.md))*
 
 ---
 
-## 🚀 Quickstart
+## 🧠 Memory Model & Resource Bounds
 
-### Installation
+`wdiff` guarantees that **anonymous heap consumption** scales with the size of the largest single tensor, not total model size:
 
-> ⚠️ PyPI's `wdiff` name is taken by an unrelated tool (see notice above). Use GitHub installs until this project publishes under a distinct name.
+$$\text{Heap Peak} \approx 2 \times T_{\max} + \mathcal{O}(1)$$
 
-```bash
-# Using uv (recommended, instant execution from GitHub)
-uvx --from git+https://github.com/Aayushbankar/wdiff wdiff --help
+For a standard 7B model where the largest single MLP tensor is $\approx 235$ MB, anonymous heap is bounded to $\approx 1.1$ GB.
 
-# Using pip from GitHub
-pip install "git+https://github.com/Aayushbankar/wdiff.git"
+> [!NOTE]
+> **Process RSS vs Anonymous Heap**: While heap memory is bounded by the largest active tensor pair, the OS process Resident Set Size (RSS) will include pages cached by the Linux kernel's virtual memory subsystem from `mmap` checkpoint reads. Total process RSS on 1.7B GGUF models typically measures $\approx 4.3$ GB during a complete deep diff run.
 
-# Clone for local development
-git clone https://github.com/Aayushbankar/wdiff.git
-cd wdiff
-uv sync --extra dev   # or: pip install -e ".[dev]"
+---
+
+## 📖 CLI Flag Reference
+
+| Option | Flag | Description | Default |
+|---|---|---|---|
+| Filter | `-f`, `--filter REGEX` | Regex pattern matching tensor names (e.g. `blk\.0\.attn`) | `None` |
+| Deep Spectral | `--deep` | Enables randomized SVD, Marcenko-Pastur noise floor, and taxonomy | `False` |
+| Concept Lens | `--lens` | Decodes semantic concept directions on down-projection layers | `False` |
+| LoRA Adapter | `--lora PATH` | Path to LoRA adapter (`.safetensors`) to fold onto `model_a` | `None` |
+| LoRA Scale | `--lora-scale FLOAT` | Global scaling factor multiplier for LoRA adapter | `1.0` |
+| HTML Report | `--report PATH` | Path to export self-contained interactive HTML dashboard | `None` |
+| JSON Output | `--json` | Stream machine-readable JSON metrics to stdout | `False` |
+| Tokenizer Path | `--tokenizer PATH` | Path to `tokenizer.json` or directory for vocabulary lookup | Auto-discovered |
+| Lens Top-K | `--lens-top-k INT` | Number of positive/negative concept tokens per layer | `5` |
+| RoPE Parity | `--no-rope-parity` | Disable automatic RoPE deinterleaving for cross-format diffs | `False` |
+| Version | `-v`, `--version` | Display version and exit | — |
+
+---
+
+## 🐍 Python API
+
+In addition to the CLI, `wdiff` can be embedded directly into Python pipelines:
+
+```python
+from wdiff.engine.diff import diff_models
+from wdiff.display.report import generate_html_report
+
+# Perform differential analysis
+result = diff_models(
+    "model_a.safetensors",
+    "model_b.safetensors",
+    deep=True,
+    lens=True,
+)
+
+print(f"Matched {result.summary.matched_count} layers")
+print(f"Mean Frobenius Delta: {result.summary.mean_frobenius:.6f}")
+print(f"Max Drift Layer: {result.summary.max_frobenius_tensor}")
+
+# Export standalone report
+generate_html_report(result, "audit_report.html")
 ```
 
-### CLI Command Guide
-
-```bash
-# 1. Compare two models (auto-routes to diff)
-wdiff modelA.safetensors modelB.gguf
-
-# 2. Deep forensic diff with SVD and semantic logit lens
-wdiff modelA.gguf modelB.gguf --deep --lens
-
-# 3. Inspect a single checkpoint for health and quantization readiness
-wdiff inspect model.gguf
-
-# 4. Filter specific layers using regex
-wdiff modelA.gguf modelB.gguf -f "blk\.1[0-4]\.ffn_down"
-
-# 5. Generate a standalone interactive HTML report
-wdiff modelA.gguf modelB.gguf --report diff_report.html
-
-# 6. Apply a virtual LoRA adapter to modelA before comparing
-wdiff base.safetensors target.safetensors --lora adapter.safetensors --lora-scale 1.0
-
-# 7. Output machine-readable JSON for CI/CD pipelines
-wdiff modelA.gguf modelB.gguf --json > diff.json
-```
-
 ---
 
-## 🔬 Mathematical Metrics Reference
+## 📚 Technical Documentation & Deep Dives
 
-| Metric | Formula | Interpretation |
-| :--- | :--- | :--- |
-| **Relative Frobenius Delta** | $\frac{\|W_A - W_B\|_F}{\|W_A\|_F}$ | Total relative magnitude of change (0.00% = identical). |
-| **Cosine Similarity** | $\frac{\text{vec}(W_A) \cdot \text{vec}(W_B)}{\|W_A\|_F \|W_B\|_F}$ | Directional alignment of weights in high-dimensional space. |
-| **Dettmers Outlier Score** | $\frac{\max|W| - \text{median}(|W|)}{\text{MAD} / 0.6745 + 10^{-12}}$ | Feature outlier magnitude; scores $>15.0$ predict quantization collapse. |
-| **Effective Rank (`--deep`)** | $\exp\left(-\sum p_i \ln p_i\right)$ | Entropy-based dimension count of the weight perturbation. |
-| **Signal Rank (`--deep`)** | $\sum \mathbb{I}(\sigma_i > s_+)$ | Number of singular values exceeding the Marchenko-Pastur bulk noise edge. |
-| **Logit Lens Projection** | $W_U \cdot u_1$ | Projects the primary singular vector into vocabulary logit space. |
-
----
-
-## 🛠️ Architecture & Documentation
-
-- [**Technical Architecture & Streaming Buffers**](docs/ARCHITECTURE.md): Zero-copy `mmap`, bounded synchronous streaming buffer (optional threaded prefetch), and format abstraction.
-- [**Engineering Errors & Fixes Ledger**](docs/ERRORS_AND_FIXES.md): Forensic record of all 23 bugs, edge cases, and architectural fixes.
-- [**Research & Forensic Demos**](docs/RESEARCH_DEMOS.md): Mathematical proofs of safety abliteration and successor model delta geometry.
-- [**Development Roadmap**](docs/ROADMAP.md): Complete milestone ledger and future native compilation plans.
+- [**Technical Architecture & Streaming Buffers**](docs/ARCHITECTURE.md): Memory maps, chunked accumulation, and protocol design.
+- [**Tensor Naming & Canonicalization**](docs/learning/01_TENSOR_NAMING_CANONICALIZATION.md): Regex mapping tables across LLaMA, Qwen2, Gemma, Gemma2, and Phi-3.
+- [**Random Matrix Theory & Noise Floors**](docs/learning/03_RANDOM_MATRIX_THEORY_NOISE_FLOOR.md): Mathematical derivations of the Marcenko-Pastur distribution.
+- [**Grassmannian Subspace Geometry**](docs/learning/04_SUBSPACE_ANGLES_AND_GEOMETRY.md): Principal angles and Uhlmann fidelity proofs.
+- [**Engineering Errors & Fixes Ledger**](docs/ERRORS_AND_FIXES.md): Forensic log of all 23 historical bugs and mitigations.
+- [**Development Roadmap**](docs/ROADMAP.md): Milestone tracker and roadmap.
 
 ---
 

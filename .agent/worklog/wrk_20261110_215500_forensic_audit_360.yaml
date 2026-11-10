@@ -1,0 +1,54 @@
+work_record:
+  id: wrk_20261110_215500_forensic_audit_360
+  timestamp: '2026-11-10T16:25:00Z'
+  intent:
+    task: "Complete 360-degree forensic code, math, docs, and market audit of wdiff at HEAD (6800db8)"
+    phase: "audit_verification"
+    persona: "principal_auditor"
+    model: "claude-3-7-sonnet-thinking"
+    complexity_triggers:
+      - "mathematical_rigor_verification"
+      - "security_audit"
+      - "market_analysis"
+      - "cross_format_parity_check"
+  execution:
+    steps:
+      - step: "Verify test suite and linter gates"
+        status: done
+        evidence: "207 passed in 19.41s; ruff check and ruff format clean"
+        outcome: "Verified clean baseline"
+      - step: "Audit engine math and algorithmic correctness"
+        status: done
+        evidence: "Identified power-iteration QR omission in fast_randomized_svd and k=16 truncation artifact on stable rank"
+        outcome: "Detailed mathematical proofs and edge case analysis documented"
+      - step: "Audit reader protocols, formats, and security"
+        status: done
+        evidence: "Verified path traversal guard in sharded_reader; identified </script> JSON injection in report.py and Qwen2 bias naming pattern bug"
+        outcome: "Security and reader edge cases catalogued"
+      - step: "Verify documentation and benchmark claims"
+        status: done
+        evidence: "Verified PyPI collision (Spanish spelling tool), unused scipy dependency, and RSS vs heap nuances"
+        outcome: "Claims verified with file:line citations"
+  artifacts:
+    - { type: file, path: "src/wdiff/engine/spectral.py", verified: true }
+    - { type: file, path: "src/wdiff/display/report.py", verified: true }
+    - { type: file, path: "src/wdiff/readers/naming.py", verified: true }
+  learned:
+    patterns:
+      - "Truncated randomized SVD bounds energy sums, distorting downstream stable rank thresholds"
+      - "DOM textContent escaping in JS does not protect against JSON embedding script tag breakout"
+    dead_ends: []
+    promoted_to_skill_kb: []
+  next:
+    - "Fix P0 bugs before public announcement"
+    - "Resolve PyPI package name collision"
+  verification:
+    claims:
+      - claim: "All 207 tests pass on python 3.11"
+        evidence: "pytest tests/ -q output: 207 passed in 19.41s"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "HTML reports contain zero external network dependencies"
+        evidence: "grep for http/https/cdn in generated HTML yielded zero matches"
+        method: RUNTIME
+        status: VERIFIED

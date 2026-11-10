@@ -1,0 +1,79 @@
+work_record:
+  id: wrk_20261110_165451_audit_fixes
+  timestamp: '2026-11-10T16:54:51Z'
+  intent:
+    task: "Implement and verify audit-driven fixes (script-safe HTML embedding, spectral math correctness, LoRA deep/lens parity, reader/docs cleanup)"
+    phase: "audit_fix_implementation"
+    persona: "engineer"
+    model: "opencode/iceman-free"
+    complexity_triggers:
+      - "cross_module_math_and_api_changes"
+      - "regression_verification"
+      - "security_hardening_html_report"
+    references:
+      - ".agent/worklog/wrk_20261110_215500_forensic_audit_360.yaml"
+  execution:
+    steps:
+      - step: "Harden HTML report inline table-data embedding against </script> breakout"
+        status: done
+        evidence: "src/wdiff/display/report.py embeds TABLE_DATA via JSON.parse of JSON-encoded payload with </ escaped to <\\\\/; tests/display/test_report.py adds breakout regression"
+        outcome: "Script-tag breakout payloads are safely encoded in inline JS"
+      - step: "Fix spectral/SVD numerical issues and stable-rank normalization"
+        status: done
+        evidence: "src/wdiff/engine/spectral.py adds intermediate QR in HMT power iteration and compute_spectral_bundle(..., frobenius_norm=...); src/wdiff/engine/diff.py and src/wdiff/engine/inspect.py pass full diff/norm frobenius energy"
+        outcome: "Stable rank and spectral bundle use true matrix energy instead of truncated-k artifact"
+      - step: "Propagate deep/lens/filter options through LoRA diff and CLI"
+        status: done
+        evidence: "src/wdiff/engine/lora.py and src/wdiff/cli.py forward deep/lens/tokenizer/lens_top_k/tensor_filter, compute per-layer spectral/taxonomy/lens, and serialize extended LoRA results"
+        outcome: "LoRA diff path gains parity with standard diff analysis flags"
+      - step: "Apply low-risk reader/docs/dependency cleanup"
+        status: done
+        evidence: "src/wdiff/readers/naming.py Qwen2 bias patterns include (?P<suffix>bias); removed dead quant lookup in gguf_reader.py; clarified BF16 proxy in safetensors_reader.py; removed scipy from pyproject.toml; updated docs/ROADMAP.md test count to 207/207 baseline reference"
+        outcome: "Naming, docs, and dependency hygiene improved"
+      - step: "Run lint/format/tests and repair regressions"
+        status: done
+        evidence: "uv run ruff check src/ tests/ clean; uv run ruff format src/ tests/ + --check clean; uv run --extra dev pytest tests/ -q => 208 passed"
+        outcome: "All quality gates passed after fixes and added regression test"
+  artifacts:
+    - { type: file, path: "src/wdiff/display/report.py", verified: true }
+    - { type: file, path: "src/wdiff/engine/spectral.py", verified: true }
+    - { type: file, path: "src/wdiff/engine/diff.py", verified: true }
+    - { type: file, path: "src/wdiff/engine/inspect.py", verified: true }
+    - { type: file, path: "src/wdiff/engine/lora.py", verified: true }
+    - { type: file, path: "src/wdiff/cli.py", verified: true }
+    - { type: file, path: "src/wdiff/readers/naming.py", verified: true }
+    - { type: file, path: "src/wdiff/readers/gguf_reader.py", verified: true }
+    - { type: file, path: "src/wdiff/readers/safetensors_reader.py", verified: true }
+    - { type: file, path: "pyproject.toml", verified: true }
+    - { type: file, path: "docs/ROADMAP.md", verified: true }
+    - { type: file, path: "tests/display/test_report.py", verified: true }
+  learned:
+    patterns:
+      - "Embedding JSON inside <script> requires escaping '</' sequences (or equivalent safe transport) in addition to HTML/JS string escaping"
+      - "Stable-rank/taxonomy signals should be derived from full matrix energy when truncated SVD is used for decomposition"
+    dead_ends:
+      - "Initial f-string embedding of escaped JSON in report template failed due to Python backslash-in-expression parsing; resolved via precomputed safe payload variable"
+      - "LoRA lens path initially referenced non-existent lens loader/symbols and mismatched decode API; aligned to diff.py vocabulary/unembedding getter pattern"
+    promoted_to_skill_kb: []
+  next:
+    - "Address remaining audit items: outlier/MAD quant-readiness calibration, unused PipelinedRingBuffer path/docs, PyPI package-name/CI publish alignment"
+    - "Reconcile stale .agent/plan.md and .agent/task.md with current repo state"
+    - "Commit/push only if explicitly requested"
+  verification:
+    claims:
+      - claim: "Lint checks pass on modified codebase"
+        evidence: "`uv run ruff check src/ tests/` completed with no errors"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Formatting checks pass on modified codebase"
+        evidence: "`uv run ruff format src/ tests/` applied and `uv run ruff format --check src/ tests/` reported all files formatted"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Test suite passes including HTML script-breakout regression"
+        evidence: "`uv run --extra dev pytest tests/ -q` => 208 passed in 31.25s (includes tests/display/test_report.py::TestHTMLReportSecurity::test_script_breakout_in_table_data_is_escaped)"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Audit-fix implementation and regression test artifacts are present"
+        evidence: "Modified/added: src/wdiff/display/report.py, src/wdiff/engine/spectral.py, src/wdiff/engine/diff.py, src/wdiff/engine/inspect.py, src/wdiff/engine/lora.py, src/wdiff/cli.py, src/wdiff/readers/naming.py, src/wdiff/readers/gguf_reader.py, src/wdiff/readers/safetensors_reader.py, pyproject.toml, docs/ROADMAP.md, tests/display/test_report.py"
+        method: STATIC
+        status: VERIFIED

@@ -1,0 +1,55 @@
+work_record:
+  id: wrk_20261110_224500_readme_and_branding_update
+  timestamp: '2026-11-10T17:15:00Z'
+  intent:
+    task: "Adopt weight-diff PyPI package name, generate screenshots/terminal SVGs, and overhaul root README"
+    phase: "packaging_and_docs_enhancement"
+    persona: "engineer"
+    model: "claude-3-7-sonnet-thinking"
+    complexity_triggers:
+      - "visual_asset_generation"
+      - "branding_and_pypi_alignment"
+      - "documentation_overhaul"
+  execution:
+    steps:
+      - step: "Update PyPI package name in pyproject.toml"
+        status: done
+        evidence: "Changed name to 'weight-diff' in pyproject.toml while retaining 'wdiff' script entrypoint"
+        outcome: "Package avoids PyPI name collision with 2021 Spanish difficulty tool"
+      - step: "Generate terminal SVGs and headless browser screenshots"
+        status: done
+        evidence: "Rendered docs/images/terminal_diff.svg and terminal_inspect.svg via Rich console; captured docs/images/report_screenshot.png and inspect_screenshot.png via headless Chromium"
+        outcome: "High-resolution visual assets created in docs/images/"
+      - step: "Comprehensively overhaul README.md"
+        status: done
+        evidence: "Expanded README with visual tour, deep mathematical capability explanations, automated taxonomy matrix, benchmark results, CLI reference, and Python API"
+        outcome: "README transformed from bare-bones mockups to authoritative, visually rich documentation"
+      - step: "Run full quality gates"
+        status: done
+        evidence: "uv run ruff check src/ tests/ clean; uv run ruff format --check clean; pytest passed 208/208 in 19.34s"
+        outcome: "All quality gates 100% verified"
+  artifacts:
+    - { type: file, path: "README.md", verified: true }
+    - { type: file, path: "pyproject.toml", verified: true }
+    - { type: file, path: "docs/images/terminal_diff.svg", verified: true }
+    - { type: file, path: "docs/images/terminal_inspect.svg", verified: true }
+    - { type: file, path: "docs/images/report_screenshot.png", verified: true }
+    - { type: file, path: "docs/images/inspect_screenshot.png", verified: true }
+  learned:
+    patterns:
+      - "Rich console record=True with save_svg creates dark-mode terminal SVGs that render natively on GitHub without image hosting"
+      - "Headless Chromium allows deterministic generation of report screenshots directly from local HTML benchmark artifacts"
+    dead_ends: []
+    promoted_to_skill_kb: []
+  next:
+    - "Commit and push changes to remote"
+  verification:
+    claims:
+      - claim: "Pytest passes 208/208 tests with weight-diff build"
+        evidence: "uv run --extra dev pytest tests/ -q completed with '208 passed in 19.34s'"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Ruff checks and formatting are clean"
+        evidence: "uv run ruff check and ruff format --check exit code 0"
+        method: RUNTIME
+        status: VERIFIED
