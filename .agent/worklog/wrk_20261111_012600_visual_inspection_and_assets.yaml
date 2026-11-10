@@ -1,0 +1,67 @@
+work_record:
+  id: wrk_20261111_012600_visual_inspection_and_assets
+  timestamp: '2026-11-10T19:56:00Z'
+  intent:
+    task: "Visual inspection and regeneration of real model screenshots, terminal SVGs, and layout fixes"
+    phase: "visual_audit_and_release_preparation"
+    persona: "designer_engineer"
+    model: "claude-3-7-sonnet-thinking"
+    complexity_triggers:
+      - "multimodal_visual_inspection"
+      - "rich_terminal_svg_dimensions"
+      - "real_model_spectral_diff"
+  execution:
+    steps:
+      - step: "Generate diff and inspect reports from real local models"
+        status: done
+        evidence: "Generated real diff between LFM3-1.7B-Q4_K_M and LFM3-1.7B-Uncensored-AD-Q4_K_M (44 tensors, deep spectral & logit lens) and inspection of SmolLM2-360M-Instruct (290 tensors)"
+        outcome: "Real model data with genuine spectral ranks, Marchenko-Pastur bounds, and vocabulary concept shifts"
+      - step: "Perform visual inspection of rendered reports and fix empty chart issue"
+        status: done
+        evidence: "Rendered via headless Chromium with virtual time budget; verified using multimodal read_file; captured both full macro overview and slide-over inspector drawer"
+        outcome: "report_screenshot.png (1600x1650), report_drawer.png (1600x1200), inspect_screenshot.png (1600x1650) verified visually"
+      - step: "Fix terminal table column starvation bug in terminal.py"
+        status: done
+        evidence: "Removed conflicting ratio= attributes and hardcoded width constraints in render_diff_table and render_inspection_table; enabled full 9-column display with geometry and classification"
+        outcome: "Terminal tables render all columns (Layer, Shape, Rel. dF, Cosine Sim, Max |d|, Rank, Geometry, Classification, Status) without folding or truncation"
+      - step: "Generate authentic, high-resolution terminal SVGs"
+        status: done
+        evidence: "Recorded 140-column terminal captures with real model outputs; rendered to PNG and visually confirmed using read_file"
+        outcome: "terminal_diff.svg and terminal_inspect.svg are standard readable dimensions (~900x800px) instead of 6300px unreadable noodles"
+      - step: "Run full verification gates"
+        status: done
+        evidence: "ruff check passed, ruff format passed, 208/208 tests passed"
+        outcome: "Zero regressions across entire test suite"
+  artifacts:
+    - { type: file, path: "src/wdiff/display/terminal.py", verified: true }
+    - { type: file, path: "docs/images/report_screenshot.png", verified: true }
+    - { type: file, path: "docs/images/report_drawer.png", verified: true }
+    - { type: file, path: "docs/images/inspect_screenshot.png", verified: true }
+    - { type: file, path: "docs/images/terminal_diff.svg", verified: true }
+    - { type: file, path: "docs/images/terminal_inspect.svg", verified: true }
+    - { type: file, path: "README.md", verified: true }
+  learned:
+    patterns:
+      - "In Rich Table, mixing ratio= on some columns with fixed width= on others can cause flexible columns to collapse to zero width if console size is constrained"
+      - "In non-interactive subprocesses, Rich defaults to 80 columns if TERM=dumb; set TERM=xterm-256color or pass _environ to enforce target width"
+      - "Terminal SVGs in GitHub READMEs must have bounded height (~800-900px) to prevent GitHub from scaling down font size into unreadable slivers"
+    dead_ends: []
+    promoted_to_skill_kb: []
+  next:
+    - "Commit changes and push to origin/main"
+    - "Verify GitHub Actions CI is green"
+    - "Publish package to PyPI and create GitHub Release"
+  verification:
+    claims:
+      - claim: "All 5 README visual assets are visually verified via multimodal read_file"
+        evidence: "Inspected report_screenshot.png, inspect_screenshot.png, report_drawer.png, terminal_diff.svg (rendered), terminal_inspect.svg (rendered)"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "All 208 unit and integration tests pass"
+        evidence: "pytest passed 208/208 in 41.55s"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Code formatting and linting pass with 0 errors"
+        evidence: "ruff check and ruff format --check exit 0"
+        method: STATIC
+        status: VERIFIED

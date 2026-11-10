@@ -29,17 +29,21 @@ When comparing fine-tuned, pruned, abliterated, or merged checkpoints, standard 
 ## 🖥️ Visual Tour
 
 ### 1. Terminal Forensics Interface (Rich TUI)
-High-resolution terminal output featuring an ASCII/Unicode **Transformer Architecture Topology flow**, relative delta distribution heatbars, spectral taxonomy classifications, coordinate alignment indicators, and anomaly warnings:
+High-resolution terminal output on real models (`LFM3-1.7B` Base vs `LFM3-1.7B-Uncensored`), featuring an ASCII/Unicode **Transformer Architecture Topology flow**, relative delta distribution heatbars, spectral taxonomy classifications (`Full-Rank Continual Learning`, `LoRA Adapter`, `SGD Noise`), and **Logit Lens Concept Decoding** projecting top singular vectors directly into vocabulary space to detect promoted and suppressed token concepts:
 
 ![Terminal Diff Output](docs/images/terminal_diff.svg)
 
 ### 2. Standalone Interactive HTML Report (`--report`)
-Self-contained single-file HTML reports featuring an **Interactive Transformer Architecture Topology Map**, multi-view **Spectral Landscape Charts**, live search & multi-filtering, and a slide-over **Layer Inspector Drawer** with SVD eigenvalue decay against Marcenko-Pastur noise floors, Grassmannian subspace geometry, and semantic logit lens cards. Completely air-gapped with zero remote CDN or external font dependencies:
+Self-contained single-file HTML reports on real model checkpoints featuring an **Interactive Transformer Architecture Topology Map**, multi-view **Spectral Landscape Charts**, live search & multi-filtering, and a slide-over **Layer Inspector Drawer** with SVD eigenvalue decay against Marchenko-Pastur noise floors, Grassmannian subspace geometry, and semantic logit lens cards. Completely air-gapped with zero remote CDN or external font dependencies:
 
 ![HTML Forensics Dashboard](docs/images/report_screenshot.png)
 
+*Clicking any layer in the topology map or table opens the Slide-Over Forensic Inspector with Marchenko-Pastur spectral plots, Grassmannian subspace angles, and Logit Lens token decodings:*
+
+![Slide-over Layer Inspector Drawer](docs/images/report_drawer.png)
+
 ### 3. Single-Model Health & Quantization Readiness (`wdiff inspect`)
-Audit dead neurons, feature outlier spikes, and 4-bit quantization collapse risk in seconds with interactive norm distribution charts:
+Real-world audit of `SmolLM2-360M-Instruct (Q8_0)` checking dead neurons, feature outlier spikes, and 4-bit quantization collapse risk in seconds with interactive norm distribution charts:
 
 ![Inspection Report](docs/images/inspect_screenshot.png)
 
