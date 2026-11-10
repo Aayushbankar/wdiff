@@ -95,7 +95,7 @@ This document outlines the version milestones, feature targets, and release crit
   - Hoisted per-tensor imports outside inner loop in `lora.py`.
   - Removed unnecessary dummy delta taxonomy computation on identical tensors ($w - w$) in `inspect.py`.
   - Cleaned untracked editor backup files (`*.bak*`).
-- [x] Full automated test suite passing (194/194 tests, 0 failures), 100% ruff clean.
+- [x] Full automated test suite passing (207/207 tests, 0 failures), 100% ruff clean.
 
 ---
 
