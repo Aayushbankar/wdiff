@@ -321,40 +321,52 @@ class TestCLINoRoPEParityFlag:
     def test_cli_no_rope_parity_flag(self):
         """Verify --no-rope-parity can be passed to CLI."""
         import subprocess
+        import sys
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[2]
+        model_a = str(repo_root / "tests/fixtures/model_a.safetensors")
+        model_b = str(repo_root / "tests/fixtures/model_a.gguf")
 
         # Run CLI with --no-rope-parity flag (should not error)
         result = subprocess.run(
             [
-                "python",
+                sys.executable,
                 "-m",
                 "wdiff.cli",
-                "tests/fixtures/model_a.safetensors",
-                "tests/fixtures/model_a.gguf",
+                model_a,
+                model_b,
                 "--no-rope-parity",
             ],
             check=False,
             capture_output=True,
             text=True,
-            cwd="/mnt/work/projects/wdiff",
+            cwd=str(repo_root),
         )
         assert result.returncode == 0, f"CLI failed: {result.stderr}"
 
     def test_cli_default_rope_parity_enabled(self):
         """Verify rope_parity is enabled by default (no flag needed)."""
         import subprocess
+        import sys
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[2]
+        model_a = str(repo_root / "tests/fixtures/model_a.safetensors")
+        model_b = str(repo_root / "tests/fixtures/model_a.gguf")
 
         result = subprocess.run(
             [
-                "python",
+                sys.executable,
                 "-m",
                 "wdiff.cli",
-                "tests/fixtures/model_a.safetensors",
-                "tests/fixtures/model_a.gguf",
+                model_a,
+                model_b,
             ],
             check=False,
             capture_output=True,
             text=True,
-            cwd="/mnt/work/projects/wdiff",
+            cwd=str(repo_root),
         )
         assert result.returncode == 0, f"CLI failed: {result.stderr}"
 

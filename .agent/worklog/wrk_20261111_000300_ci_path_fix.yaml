@@ -1,0 +1,46 @@
+work_record:
+  id: wrk_20261111_000300_ci_path_fix
+  timestamp: '2026-11-10T18:33:00Z'
+  intent:
+    task: "Fix CI failure caused by hardcoded /mnt/work/projects/wdiff path in tests"
+    phase: "ci_hardening"
+    persona: "engineer"
+    model: "claude-3-7-sonnet-thinking"
+    complexity_triggers:
+      - "ci_failure_diagnosis"
+      - "portable_test_paths"
+  execution:
+    steps:
+      - step: "Diagnose CI failure via gh CLI"
+        status: done
+        evidence: "gh run view 42873644826 --log-failed revealed FileNotFoundError: [Errno 2] No such file or directory: '/mnt/work/projects/wdiff' in 4 tests"
+        outcome: "Identified hardcoded local path in test_logit_lens.py, test_partial_shape.py, and test_rope_parity.py"
+      - step: "Replace hardcoded paths with dynamic repository root"
+        status: done
+        evidence: "Used Path(__file__).resolve().parents[2] and sys.executable across all subprocess tests"
+        outcome: "Tests run portably in any environment (GitHub Actions ubuntu runner, local dev, Docker)"
+      - step: "Verify all quality gates"
+        status: done
+        evidence: "ruff check passed, ruff format passed, 208/208 tests passed"
+        outcome: "CI failure completely resolved"
+  artifacts:
+    - { type: file, path: "tests/engine/test_logit_lens.py", verified: true }
+    - { type: file, path: "tests/engine/test_partial_shape.py", verified: true }
+    - { type: file, path: "tests/engine/test_rope_parity.py", verified: true }
+  learned:
+    patterns:
+      - "Never hardcode absolute paths in test subprocess invocations; use Path(__file__).resolve().parents[...] and sys.executable"
+    dead_ends: []
+    promoted_to_skill_kb: []
+  next:
+    - "Commit and push to remote"
+  verification:
+    claims:
+      - claim: "No hardcoded /mnt/ paths remain in tests or source code"
+        evidence: "git grep '/mnt/' tests/ src/ .github/ returns 0 matches"
+        method: STATIC
+        status: VERIFIED
+      - claim: "All 208 tests pass"
+        evidence: "pytest passed 208/208 in 34.06s"
+        method: RUNTIME
+        status: VERIFIED

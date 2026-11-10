@@ -452,7 +452,7 @@ class TestCLILensFlags:
                 check=False,
                 capture_output=True,
                 text=True,
-                cwd="/mnt/work/projects/wdiff",
+                cwd=str(Path(__file__).resolve().parents[2]),
             )
             assert result.returncode == 0
 

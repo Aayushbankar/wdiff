@@ -277,12 +277,14 @@ class TestPartialShapeMatching:
             save_file({"embedding.weight": base}, str(file_a))
             save_file({"embedding.weight": expanded}, str(file_b))
 
+            import sys
+
             result = subprocess.run(
-                ["python", "-m", "wdiff.cli", str(file_a), str(file_b), "--json"],
+                [sys.executable, "-m", "wdiff.cli", str(file_a), str(file_b), "--json"],
                 check=False,
                 capture_output=True,
                 text=True,
-                cwd="/mnt/work/projects/wdiff",
+                cwd=str(Path(__file__).resolve().parents[2]),
             )
             assert result.returncode == 0
 
