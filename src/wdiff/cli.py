@@ -356,6 +356,11 @@ def main(argv: list[str] | None = None) -> int:
                 str(path_a),
                 str(lora_path),
                 lora_scale=args.lora_scale,
+                tensor_filter=getattr(args, "tensor_filter", None),
+                deep=getattr(args, "deep", False),
+                lens=getattr(args, "lens", False),
+                tokenizer=getattr(args, "tokenizer", None),
+                lens_top_k=getattr(args, "lens_top_k", 8),
             )
         else:
             path_b = Path(args.model_b)

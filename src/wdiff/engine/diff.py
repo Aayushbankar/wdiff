@@ -216,7 +216,8 @@ def _try_partial_match(
     subspace = None
     if deep:
         diff_matrix = common_a - common_b
-        spectral = compute_spectral_bundle(diff_matrix, k=16)
+        diff_frob = float(np.linalg.norm(diff_matrix.astype(np.float64, copy=False)))
+        spectral = compute_spectral_bundle(diff_matrix, k=16, frobenius_norm=diff_frob)
         taxonomy = classify_weight_delta(diff_matrix, metrics, spectral)
         subspace = compute_subspace_geometry(common_a, common_b, k=16)
         del diff_matrix
@@ -605,7 +606,8 @@ def _run_paired_buffer(
         if deep or run_lens:
             diff_matrix = tensor_a - tensor_b
             if deep:
-                spectral = compute_spectral_bundle(diff_matrix, k=16)
+                diff_frob = float(np.linalg.norm(diff_matrix.astype(np.float64, copy=False)))
+                spectral = compute_spectral_bundle(diff_matrix, k=16, frobenius_norm=diff_frob)
                 taxonomy = classify_weight_delta(diff_matrix, metrics, spectral)
                 subspace = compute_subspace_geometry(tensor_a, tensor_b, k=16)
             if run_lens:

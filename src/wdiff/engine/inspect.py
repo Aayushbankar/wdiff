@@ -312,7 +312,7 @@ def inspect_model(
             spectral = None
             taxonomy = None
             if deep:
-                spectral = compute_spectral_bundle(w, k=16)
+                spectral = compute_spectral_bundle(w, k=16, frobenius_norm=norm)
 
             # Get dtype string
             dtype_str = str(w.dtype)

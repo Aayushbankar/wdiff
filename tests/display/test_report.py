@@ -247,3 +247,47 @@ class TestHTMLReportSecurity:
         assert "<title>&lt;script&gt;alert(&#x27;inspect&#x27;)&lt;/script&gt;</title>" in content
         assert "&amp;lt;script" not in content
         assert "<script>alert" not in content
+
+    def test_script_breakout_in_table_data_is_escaped(self, tmp_path):
+        """Inline JSON in <script> must not allow </script> breakout from data."""
+        from wdiff.display.report import generate_html_report
+        from wdiff.engine.diff import DiffResult, DiffSummary, TensorDiffResult
+        from wdiff.engine.metrics import MetricsBundle
+
+        results = DiffResult(
+            model_a_path="model_a.safetensors",
+            model_b_path="model_b.safetensors",
+            format_a="safetensors",
+            format_b="safetensors",
+            tensor_results=[
+                TensorDiffResult(
+                    name='layer.0.</script><script>alert("xss")</script>.weight',
+                    shape_a=(1, 1),
+                    shape_b=(1, 1),
+                    metrics=MetricsBundle(
+                        relative_frobenius=0.0,
+                        cosine_similarity=1.0,
+                        max_element_delta=0.0,
+                        mean_element_delta=0.0,
+                    ),
+                    status="MATCH",
+                )
+            ],
+            summary=DiffSummary(
+                matched_count=1,
+                max_frobenius_value=0.0,
+                mean_frobenius=0.0,
+                min_cosine_value=1.0,
+            ),
+            duration_seconds=0.1,
+            peak_ram_mb=42.0,
+        )
+
+        out = tmp_path / "breakout.html"
+        generate_html_report(results, str(out))
+        content = out.read_text(encoding="utf-8")
+
+        # Raw closing script tag from data must not appear inside inline script payload
+        assert '</script><script>alert("xss")</script>.weight' not in content
+        assert "<\\/script>" in content
+        assert "<script>alert" not in content

@@ -90,31 +90,31 @@ _LLAMA_PATTERNS = [
 _QWEN2_PATTERNS = [
     *[(re.compile(p.pattern), repl) for p, repl in _LLAMA_PATTERNS],
     (
-        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.self_attn\.q_proj\.(bias)"),
+        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.self_attn\.q_proj\.(?P<suffix>bias)"),
         "blk.{layer}.attn_q.{suffix}",
     ),
     (
-        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.self_attn\.k_proj\.(bias)"),
+        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.self_attn\.k_proj\.(?P<suffix>bias)"),
         "blk.{layer}.attn_k.{suffix}",
     ),
     (
-        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.self_attn\.v_proj\.(bias)"),
+        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.self_attn\.v_proj\.(?P<suffix>bias)"),
         "blk.{layer}.attn_v.{suffix}",
     ),
     (
-        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.self_attn\.o_proj\.(bias)"),
+        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.self_attn\.o_proj\.(?P<suffix>bias)"),
         "blk.{layer}.attn_output.{suffix}",
     ),
     (
-        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.mlp\.gate_proj\.(bias)"),
+        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.mlp\.gate_proj\.(?P<suffix>bias)"),
         "blk.{layer}.ffn_gate.{suffix}",
     ),
     (
-        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.mlp\.up_proj\.(bias)"),
+        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.mlp\.up_proj\.(?P<suffix>bias)"),
         "blk.{layer}.ffn_up.{suffix}",
     ),
     (
-        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.mlp\.down_proj\.(bias)"),
+        re.compile(rf"model\.layers\.{_LAYER_PATTERN}\.mlp\.down_proj\.(?P<suffix>bias)"),
         "blk.{layer}.ffn_down.{suffix}",
     ),
 ]

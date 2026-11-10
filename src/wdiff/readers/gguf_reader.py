@@ -128,7 +128,6 @@ class GGUFReader:
         data = tensor_info.data
 
         quant_type = int(tensor_info.tensor_type)
-        _QUANT_TYPE_MAP.get(quant_type, f"UNKNOWN_{quant_type}")
 
         if quant_type in (
             int(GGMLQuantizationType.F32),

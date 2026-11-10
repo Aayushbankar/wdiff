@@ -10,7 +10,7 @@ from .base import TensorInfo
 _SAFE_DTYPE_MAP = {
     "F32": np.dtype("float32"),
     "F16": np.dtype("float16"),
-    "BF16": np.dtype("float16"),  # bfloat16 not in numpy, use float16 as proxy
+    "BF16": np.dtype("float16"),  # bfloat16 not in numpy, float16 proxy for itemsize
     "I64": np.dtype("int64"),
     "I32": np.dtype("int32"),
     "I16": np.dtype("int16"),

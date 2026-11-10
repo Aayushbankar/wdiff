@@ -76,9 +76,10 @@ def fast_randomized_svd(
     # Step 1: Generate random test matrix Omega
     Omega = np.random.randn(n, l).astype(A.dtype)
 
-    # Step 2: Build orthonormal basis for range of A
+    # Step 2: Build orthonormal basis for range of A (HMT with intermediate QR)
     Y = A @ Omega
     for _ in range(n_iter):
+        Y, _ = np.linalg.qr(Y, mode="reduced")
         Y = A @ (A.T @ Y)
 
     # Orthonormalize
@@ -219,13 +220,17 @@ def quantum_fidelity(
 def compute_spectral_bundle(
     delta_W: np.ndarray,
     k: int = 16,
+    frobenius_norm: float | None = None,
 ) -> SpectralBundle:
     """
-    Compute comprehensive spectral bundle from weight delta matrix.
+    Compute comprehensive spectral bundle from a weight (delta) matrix.
 
     Parameters:
         delta_W: Weight difference matrix (2D), vector (1D), or tensor (>2D)
         k: Number of singular vectors for randomized SVD
+        frobenius_norm: Optional true Frobenius norm of the full matrix. When
+            provided, stable rank uses ||W||_F^2 / sigma_1^2 over the full
+            spectrum instead of the truncated k-singular-value energy.
 
     Returns:
         SpectralBundle with all spectral metrics
@@ -290,8 +295,9 @@ def compute_spectral_bundle(
     # Primary direction energy (E1 = sigma_1^2 / sum sigma_i^2)
     primary_direction_energy = float(s_squared[0] / total_energy)
 
-    # Stable rank = ||W||_F^2 / sigma_1^2
-    stable_rank = float(total_energy / s_squared[0]) if s_squared[0] > 0 else 0.0
+    # Stable rank = ||W||_F^2 / sigma_1^2 (use full norm when available)
+    frob_energy = float(frobenius_norm) ** 2 if frobenius_norm is not None else total_energy
+    stable_rank = float(frob_energy / s_squared[0]) if s_squared[0] > 0 else 0.0
 
     # Effective rank = exp(-sum p_i log p_i) where p_i = sigma_i^2 / sum sigma_j^2
     p = s_squared / total_energy

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from dataclasses import dataclass
@@ -293,6 +294,10 @@ def diff_with_lora(
     tensor_filter: str | None = None,
     progress_callback: callable | None = None,
     tie_word_embeddings: bool = False,
+    deep: bool = False,
+    lens: bool = False,
+    tokenizer: str | None = None,
+    lens_top_k: int = 8,
 ) -> LoRADiffResult:
     """
     Diff a base model against the same model with LoRA adapter applied.
@@ -303,6 +308,11 @@ def diff_with_lora(
     import time
 
     from wdiff.engine.diff import TensorDiffResult
+    from wdiff.engine.lens import (
+        Vocabulary,
+        decode_layer_concept,
+        is_down_proj_layer,
+    )
     from wdiff.engine.metrics import MetricsBundle, compute_all_metrics
     from wdiff.engine.spectral import compute_spectral_bundle
     from wdiff.engine.taxonomy import classify_weight_delta
@@ -310,9 +320,11 @@ def diff_with_lora(
     @dataclass(slots=True)
     class DiffSummary:
         matched_count: int = 0
+        partial_match_count: int = 0
         mismatched_shape_count: int = 0
         only_in_a_count: int = 0
         only_in_b_count: int = 0
+        lens_analyzed_count: int = 0
         max_frobenius_tensor: str | None = None
         max_frobenius_value: float = 0.0
         min_cosine_value: float = 1.0
@@ -338,6 +350,62 @@ def diff_with_lora(
     # Get tensor names from base model
     from wdiff.readers import get_reader
 
+    wu_matrix = None
+    wu_vocab_size = 0
+    lens_vocab = None
+    if lens:
+        wu_candidates = [
+            "output.weight",
+            "lm_head.weight",
+            "token_embd.weight",
+            "model.embed_tokens.weight",
+        ]
+        with get_reader(base_model_path) as r:
+            for cand in wu_candidates:
+                if cand in r.tensor_names():
+                    with contextlib.suppress(Exception):
+                        info = r.tensor_info(cand)
+                        wu_vocab_size = info.shape[0]
+                        from wdiff.readers.gguf_reader import GGUFReader
+
+                        if isinstance(r, GGUFReader) and cand in r._tensor_map:
+                            from gguf.quants import dequantize
+
+                            t_info = r._tensor_map[cand]
+                            qtype = int(t_info.tensor_type)
+
+                            def _make_gguf_getter(ti, qt):
+                                def _getter(start: int, end: int) -> np.ndarray:
+                                    chunk = ti.data[start:end]
+                                    return dequantize(chunk, qt).astype(np.float32, copy=False)
+
+                                return _getter
+
+                            wu_matrix = _make_gguf_getter(t_info, qtype)
+                        elif hasattr(r, "_file") and hasattr(r._file, "get_slice"):
+
+                            def _make_safe_getter(reader_obj, tensor_name):
+                                def _getter(start: int, end: int) -> np.ndarray:
+                                    return reader_obj._file.get_slice(tensor_name)[
+                                        start:end
+                                    ].astype(np.float32, copy=False)
+
+                                return _getter
+
+                            wu_matrix = _make_safe_getter(r, cand)
+                        else:
+                            wu_matrix = r.get_tensor(cand)
+                        break
+        if wu_matrix is not None:
+            if tokenizer:
+                lens_vocab = Vocabulary.from_json_file(tokenizer) or Vocabulary.auto_discover(
+                    tokenizer
+                )
+            if not lens_vocab or not lens_vocab._id_to_token:
+                lens_vocab = Vocabulary.auto_discover(base_model_path)
+            if not lens_vocab:
+                lens_vocab = Vocabulary({})
+
     with get_reader(base_model_path) as reader_a:
         names_a = list(reader_a.tensor_names())
 
@@ -357,22 +425,48 @@ def diff_with_lora(
             # Check if this layer has a LoRA adapter
             layer = adapter.get_layer_for_tensor(name)
             if layer:
-                # Compute base weight
                 base_weight = reader_a.get_tensor(name)
-
-                # Apply LoRA (adapter alpha/r scaling times the caller's --lora-scale)
                 merged_weight = apply_lora(
                     base_weight,
                     layer.lora_A,
                     layer.lora_B,
                     scale=layer.scale() * lora_scale,
                 )
-
-                # Compute diff
                 metrics = compute_all_metrics(base_weight, merged_weight)
                 diff_matrix = merged_weight - base_weight
-                spectral = compute_spectral_bundle(diff_matrix, k=16)
-                taxonomy = classify_weight_delta(diff_matrix, metrics, spectral)
+                diff_frob = float(np.linalg.norm(diff_matrix.astype(np.float64, copy=False)))
+
+                spectral = None
+                taxonomy = None
+                lens_result = None
+                run_lens = lens and wu_matrix is not None and is_down_proj_layer(name)
+                if deep or run_lens:
+                    if deep:
+                        spectral = compute_spectral_bundle(
+                            diff_matrix, k=16, frobenius_norm=diff_frob
+                        )
+                        taxonomy = classify_weight_delta(diff_matrix, metrics, spectral)
+                    if run_lens:
+                        v_size = (
+                            wu_vocab_size
+                            if wu_vocab_size > 0
+                            else (wu_matrix.shape[0] if hasattr(wu_matrix, "shape") else 0)
+                        )
+                        vocab = lens_vocab if lens_vocab is not None else Vocabulary({})
+                        try:
+                            lens_result = decode_layer_concept(
+                                diff_matrix=diff_matrix,
+                                layer_name=name,
+                                canonical_name=name,
+                                wu_matrix_or_getter=wu_matrix,
+                                vocab_size=v_size,
+                                vocab=vocab,
+                                top_k=lens_top_k,
+                            )
+                            if lens_result is not None:
+                                summary.lens_analyzed_count += 1
+                        except Exception:  # noqa: BLE001
+                            lens_result = None
 
                 tensor_results.append(
                     TensorDiffResult(
@@ -383,12 +477,12 @@ def diff_with_lora(
                         status="MATCH",
                         spectral=spectral,
                         taxonomy=taxonomy,
-                        lens=None,
+                        lens=lens_result,
                     )
                 )
                 summary.add_match(name, metrics)
+                del diff_matrix, base_weight, merged_weight
             else:
-                # No LoRA for this layer - identical
                 tensor_results.append(
                     TensorDiffResult(
                         name=name,
@@ -409,9 +503,11 @@ def diff_with_lora(
         tensor_results=tensor_results,
         summary={
             "matched_count": summary.matched_count,
+            "partial_match_count": summary.partial_match_count,
             "mismatched_shape_count": summary.mismatched_shape_count,
             "only_in_a_count": summary.only_in_a_count,
             "only_in_b_count": summary.only_in_b_count,
+            "lens_analyzed_count": summary.lens_analyzed_count,
             "max_frobenius_tensor": summary.max_frobenius_tensor,
             "max_frobenius_value": summary.max_frobenius_value,
             "min_cosine_value": summary.min_cosine_value,
