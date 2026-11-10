@@ -8,6 +8,7 @@ import pytest
 from wdiff.engine.spectral import (
     SpectralBundle,
     compute_spectral_bundle,
+    compute_subspace_geometry,
     fast_randomized_svd,
     marcenko_pastur_signal_rank,
     quantum_fidelity,
@@ -189,3 +190,90 @@ class TestSpectralBundleEdgeCases:
         bundle = compute_spectral_bundle(delta_W)
         assert bundle.singular_values[0] == pytest.approx(0.75)
         assert bundle.primary_direction_energy == 1.0
+
+
+class TestComputeSubspaceGeometry:
+    """SubspaceGeometry wiring: Grassmannian angles + Uhlmann fidelity (learning/04)."""
+
+    @staticmethod
+    def _random_matrix(seed: int = 0, shape: tuple[int, int] = (64, 32)) -> np.ndarray:
+        rng = np.random.default_rng(seed)
+        return rng.standard_normal(shape).astype(np.float32)
+
+    def test_identical_matrices_have_zero_angles_and_unit_fidelity(self):
+        W = self._random_matrix()
+        g = compute_subspace_geometry(W, W.copy(), k=8)
+        assert g is not None
+        assert g.max_principal_angle < 1.0
+        assert g.mean_cosine > 0.999
+        assert g.uhlmann_fidelity == pytest.approx(1.0, abs=1e-3)
+        assert len(g.principal_angles_deg) == 8
+        assert list(g.principal_angles_deg) == sorted(g.principal_angles_deg)
+        assert g.geodesic_distance >= 0.0
+        assert g.chordal_distance >= 0.0
+
+    def test_pure_gain_preserves_subspace_and_fidelity(self):
+        """Scale change must not rotate the subspace nor lower fidelity (gain invariance)."""
+        W = self._random_matrix()
+        g = compute_subspace_geometry(W, W * 3.0, k=8)
+        assert g is not None
+        assert g.max_principal_angle < 1.0
+        assert g.uhlmann_fidelity == pytest.approx(1.0, abs=1e-3)
+
+    def test_rotated_subspace_reports_rotation_angle(self):
+        """Rotating one top direction by 15 deg must surface 15 deg as max angle."""
+        rng = np.random.default_rng(1)
+        m, n, r, k = 64, 32, 16, 8
+        U = np.linalg.qr(rng.standard_normal((m, r)))[0].astype(np.float32)
+        V = np.linalg.qr(rng.standard_normal((n, r)))[0].astype(np.float32)
+        s = np.linspace(10.0, 1.0, r).astype(np.float32)
+        W_A = (U * s) @ V.T
+
+        # Rotate direction 0 of the LEFT basis toward an orthogonal direction:
+        # this rotates the column (feature) subspace, which is what
+        # subspace_principal_angles compares.
+        theta_deg = 15.0
+        theta = np.radians(theta_deg)
+        v_orth = rng.standard_normal((m, 1)).astype(np.float32)
+        v_orth -= U @ (U.T @ v_orth)
+        v_orth /= np.linalg.norm(v_orth)
+
+        U_rot = U.copy()
+        U_rot[:, 0] = np.cos(theta) * U[:, 0] + np.sin(theta) * v_orth.ravel()
+        W_B = (U_rot * s) @ V.T
+
+        g = compute_subspace_geometry(W_A, W_B, k=k)
+        assert g is not None
+        # Exactly one principal angle ~15 deg; the other seven are ~0.
+        assert theta_deg * 0.7 <= g.max_principal_angle <= theta_deg * 1.3
+        assert 0.0 < g.uhlmann_fidelity < 1.0
+
+    def test_orthogonal_subspaces_have_low_fidelity(self):
+        W_A = self._random_matrix(seed=2)
+        W_B = np.zeros_like(W_A)
+        W_B[32:, :] = np.random.default_rng(3).standard_normal((32, 32)).astype(np.float32)
+        g = compute_subspace_geometry(W_A, W_B, k=8)
+        assert g is not None
+        assert g.uhlmann_fidelity < 0.5
+        assert g.max_principal_angle > 45.0
+
+    def test_zero_tensor_returns_none(self):
+        W = self._random_matrix()
+        assert compute_subspace_geometry(W, np.zeros_like(W), k=8) is None
+        assert compute_subspace_geometry(np.zeros_like(W), W, k=8) is None
+
+    def test_shape_mismatch_returns_none(self):
+        W = self._random_matrix()
+        assert compute_subspace_geometry(W, W[:, :16], k=8) is None
+
+    def test_vector_and_scalar_inputs_return_none(self):
+        W = self._random_matrix()
+        assert compute_subspace_geometry(W[:, 0], W[:, 1], k=4) is None
+        assert compute_subspace_geometry(np.float32(1.0), np.float32(2.0)) is None
+
+    def test_3d_tensors_are_flattened_like_spectral_bundle(self):
+        rng = np.random.default_rng(4)
+        A = rng.standard_normal((8, 4, 4)).astype(np.float32)
+        g = compute_subspace_geometry(A, A * 2.0, k=4)
+        assert g is not None
+        assert g.uhlmann_fidelity == pytest.approx(1.0, abs=1e-3)

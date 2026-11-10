@@ -119,3 +119,11 @@ class TestDeepCLIIntegration:
         assert "primary_direction_energy" in spectral
         assert "taxonomy" in tensor
         assert "badge" in tensor["taxonomy"]
+        assert "subspace" in tensor
+        subspace = tensor["subspace"]
+        assert subspace is not None
+        assert "principal_angles_deg" in subspace
+        assert "max_principal_angle" in subspace
+        assert "uhlmann_fidelity" in subspace
+        assert 0.0 <= subspace["uhlmann_fidelity"] <= 1.0
+        assert len(subspace["principal_angles_deg"]) > 0

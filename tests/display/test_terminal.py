@@ -138,3 +138,48 @@ class TestTerminalDisplay:
         assert "orthogonal" in anomaly_text.lower() or "cosine" in anomaly_text.lower()
         # Should flag shape mismatch
         assert "shape" in anomaly_text.lower()
+
+
+class TestDeepGeometryDisplay:
+    def test_deep_table_includes_geometry_column(self):
+        from wdiff.engine.diff import diff_models
+
+        fixtures = Path(__file__).parent.parent / "fixtures"
+        model_a = str(fixtures / "model_a.safetensors")
+        model_b = str(fixtures / "model_b.safetensors")
+
+        result = diff_models(model_a, model_b, deep=True)
+        table = render_diff_table(result)
+        columns = [col.header for col in table.columns]
+        assert "Geometry" in columns
+
+        # Render to text and verify geometry cells surface theta-max and fidelity
+        from rich.console import Console
+
+        console = Console(record=True, width=220, force_terminal=False)
+        console.print(table)
+        text = console.export_text()
+        assert "Geometry" in text
+        assert "θ=" in text and "F=" in text
+
+    def test_representation_drift_anomaly_reports_theta(self, sample_diff_result):
+        from wdiff.engine.spectral import SubspaceGeometry
+
+        drifted = TensorDiffResult(
+            name="layer.drifted.weight",
+            shape_a=(64, 64),
+            shape_b=(64, 64),
+            metrics=sample_diff_result.tensor_results[0].metrics,
+            status="MATCH",
+            subspace=SubspaceGeometry(
+                principal_angles_deg=(1.0, 31.5),
+                mean_cosine=0.9,
+                chordal_distance=1.0,
+                geodesic_distance=0.56,
+                max_principal_angle=31.5,
+                uhlmann_fidelity=0.42,
+            ),
+        )
+        sample_diff_result.tensor_results.append(drifted)
+        anomalies = detect_anomalies(sample_diff_result)
+        assert any("Representation Drift" in a and "31.5" in a for a in anomalies)

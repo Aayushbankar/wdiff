@@ -67,8 +67,7 @@ Common-prefix slicing for vocab mismatches                          Project FFN 
   * **Dettmers et al. (NeurIPS 2022)** (*LLM.int8()*):
     $$\text{Outlier Ratio} = \frac{\max |W_{ij}| - \text{median}(|W|)}{\text{MAD}(W)}$$
     Emergent outlier features ($>6\sigma$) concentrate in attention projections. Layers with Outlier Ratio $>15$ are flagged as high risk for post-training quantization failure.
-  * **Martin & Mahoney (JMLR 2021)** (*Implicit Self-Regularization in Deep Neural Networks*):
-    Fits power-law exponent $\alpha$ on empirical singular value distributions ($p(\lambda) \sim \lambda^{-\alpha}$). Layers with $\alpha < 2.0$ indicate over-correlation/instability; layers with $\alpha > 6.0$ indicate un-trained noise.
+  * **Spectral Regularity Indicators** (*implemented*): Effective rank (Shannon entropy of normalized squared singular-value energy), stable rank, primary-direction energy, and the Marčenko–Pastur noise-floor signal rank — all derived from the randomized SVD ($k=16$) — serve as correlation/structure indicators per the same self-regularization literature. A full-spectrum power-law fit $\alpha$ (Martin & Mahoney, JMLR 2021, $p(\lambda) \sim \lambda^{-\alpha}$) is **not implemented** in v0.3.0: it would require an exact full SVD per layer, which the randomized engine deliberately avoids. *(Struck during the 2026-11-09 documentation re-audit; the previous text described an unimplemented feature.)*
   * **Dead Neuron Detection**:
     Identifies rows/columns where $\|W_{i, :}\|_2 \le 10^{-7}$, reporting wasted model capacity.
 * **Implementation Location**:

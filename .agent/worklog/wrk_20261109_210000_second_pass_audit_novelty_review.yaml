@@ -1,0 +1,63 @@
+work_record:
+  id: wrk_20261109_210000_second_pass_audit_novelty_review
+  timestamp: '2026-11-09T21:00:00Z'
+  intent:
+    task: "Second-pass audit: verify Phase 4 fixes, deep novelty review (docs/research vs implemented vs usable), write findings into repo audit files"
+    phase: "verification-audit"
+    persona: auditor
+    model: opencode/mimo-v2.6-flash-free
+    complexity_triggers: [cross-file-evidence-tracing, claim-verification]
+  execution:
+    steps:
+      - "Re-verified all Phase 4 fixes in code: ci.yml --extra dev, sdist exclusions, 17 escapeHtml sites, is_relative_to guard, taxonomy=None in inspect, single _format_shape, reconciled formulas (ARCHITECTURE 125-135, learning/02 52-53), ARCHITECTURE:86-90 synchronous prose"
+      - "Ran suite: 194 passed, coverage 84%, ruff clean (matches prior pass)"
+      - "Novelty trace: grep call-graphs for subspace_principal_angles/quantum_fidelity (orphaned — only spectral.py + engine/__init__), power-law alpha (zero hits in src/), peak_ram_mb (diff.py:99 sole, always 0.0), lora alpha/adapter_config (zero read path), progress bars (static metric bars only), MISTRAL detect branch (absent), plotly/torch imports (none), re.compile tensor_filter (diff.py:335 unguarded)"
+      - "Confirmed PyPI collision: pip index versions wdiff → 0.0.9 unrelated Spanish spellchecker; README quickstart lines 15/18/106/109 false"
+      - "Confirmed benchmark self-contradiction: BENCHMARK_REPORT:13 '100+ M param/s' vs table max 61.0; 9.2x ARPACK has no harness under benchmarks/"
+      - "Wrote findings: AUDIT_REPORT.md Addendum A, IMPLEMENTATION_AUDIT.md Addendum B, DOCUMENTATION_AUDIT.md Addendum C, INTENTION_VS_IMPLEMENTATION.md §5, FEATURE_COMPLETENESS.md §4 (stale-row corrections + rows 30-36 + revised summary), RELEASE_CHECKLIST.md blocker addendum 5.0"
+  artifacts:
+    - { type: file, path: AUDIT_REPORT.md, verified: true }
+    - { type: file, path: IMPLEMENTATION_AUDIT.md, verified: true }
+    - { type: file, path: DOCUMENTATION_AUDIT.md, verified: true }
+    - { type: file, path: INTENTION_VS_IMPLEMENTATION.md, verified: true }
+    - { type: file, path: FEATURE_COMPLETENESS.md, verified: true }
+    - { type: file, path: RELEASE_CHECKLIST.md, verified: true }
+  learned:
+    patterns:
+      - "grep-only call-graph tracing suffices to prove orphaned engine functions (no caller outside tests)"
+      - "Prior audit files go stale after fixes land; second pass must annotate rather than trust prior verdicts"
+    dead_ends:
+      - "DOCUMENTATION_AUDIT prior advice to mark ROADMAP Benchmarks [x] was wrong (they are Phase 5, correctly [ ])"
+    promoted_to_skill_kb: []
+  next:
+    - "P0: resolve PyPI name collision (rename or git-install docs) + README badge/RAM/quickstart fixes"
+    - "P1: wire principal angles + Uhlmann fidelity into --deep --json/report OR demote claims"
+    - "P1: implement power-law alpha in inspect --deep OR delete PHASE_3 claim"
+    - "P1: fix BENCHMARK_REPORT 100+ M line; add ARPACK harness or drop 9.2x"
+    - "P2: populate/remove peak_ram_mb; parse LoRA alpha; guard --filter regex; fix ARCHITECTURE ASCII diagram; MISTRAL detect; drop dead extras"
+  verification:
+    claims:
+      - claim: "All 9 prior Phase-4 findings fixed or partially fixed"
+        evidence: "grep/sed line evidence quoted in AUDIT_REPORT Addendum A.1 table (ci.yml:29, pyproject sdist block, report.py 17 escapeHtml, sharded_reader.py:81, inspect.py taxonomy=None, terminal.py:13, ARCHITECTURE.md:125-135, 86-90)"
+        method: STATIC
+        status: VERIFIED
+      - claim: "Grassmannian angles and Uhlmann fidelity are implemented but never reached by any user-facing path"
+        evidence: "grep -rn 'quantum_fidelity|subspace_principal_angles' src/ → only spectral.py:117/154 and engine/__init__.py exports; no refs in cli.py, display/, JSON export"
+        method: STATIC
+        status: VERIFIED
+      - claim: "Power-law alpha (Martin & Mahoney) claimed in PHASE_3 has zero implementation"
+        evidence: "grep -rni 'power.law|fitted_alpha|spectral_alpha' src/ → empty; PHASE_3 §4 Pillar 1 contains the claim"
+        method: STATIC
+        status: VERIFIED
+      - claim: "pip/uvx install wdiff fetches an unrelated PyPI package"
+        evidence: "pip index versions wdiff + PyPI JSON metadata: wdiff 0.0.9 Spanish spell checker, Mario E. Bermonti Pérez; README lines 15/18/106/109 instruct it"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Test suite 194 passed, coverage 84%, ruff clean"
+        evidence: "pytest output '194 passed'; pytest --cov → 84%; ruff check/format → All checks passed"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "peak_ram_mb always 0.0; LoRA alpha never parsed; --filter re.compile unguarded"
+        evidence: "diff.py:99 sole occurrence (no assignment); no lora_alpha/adapter_config refs in src/; diff.py:335 bare re.compile"
+        method: STATIC
+        status: VERIFIED

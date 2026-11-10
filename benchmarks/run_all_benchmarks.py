@@ -215,7 +215,7 @@ def generate_markdown_report(diff_data: dict, inspect_data: list[dict], output_f
     md.append("# `wdiff` v0.3.0 Real-World Benchmark Report")
     md.append("")
     md.append(f"**Execution Timestamp**: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
-    md.append("**Hardware Platform**: Linux x86_64, CPU Streaming Memory Bound (<500MB RAM)")
+    md.append("**Hardware Platform**: Linux x86_64, CPU (process peak RSS reported per run)")
     md.append("")
     md.append("---")
     md.append("")
@@ -225,11 +225,16 @@ def generate_markdown_report(diff_data: dict, inspect_data: list[dict], output_f
         "`wdiff` was executed across **9 distinct local model checkpoints** spanning architectures from 360M to 4B parameters (SmolLM2, Qwen2.5, Qwen3.5, LFM3, K2-Horizon, and Stable Diffusion)."
     )
     md.append("")
+    max_tp = max((r.get("throughput_m_params_sec", 0) for r in inspect_data), default=0.0)
     md.append(
-        "- **Peak Memory Guarantee**: Maintained strict streaming memory bounds across all inspections and differential runs."
+        f"- **Peak Memory**: Process RSS on Benchmark 1 peaked at "
+        f"**{diff_data.get('peak_ram_mb', 0):,.0f} MB** (dominated by mmap'd checkpoint pages "
+        "plus the paired tensor heap). The tensor heap itself scales with the largest single "
+        "tensor — see `docs/ARCHITECTURE.md` §Memory Bounding Guarantee."
     )
     md.append(
-        "- **Throughput**: Achieved up to **100+ Million parameters/second** CPU inspection throughput."
+        f"- **Throughput**: Achieved up to **{max_tp:.1f} Million parameters/second** "
+        "CPU inspection throughput (full table in §3)."
     )
     md.append(
         "- **Abliteration Forensic Detection**: Successfully isolated low-rank uncensored steerings on real model pairs (`LFM3-1.7B` vs `LFM3-1.7B-Uncensored`), quantifying rank-1 spectral dominance and decoding semantic concept directions."
@@ -297,7 +302,9 @@ def generate_markdown_report(diff_data: dict, inspect_data: list[dict], output_f
     md.append("## 4. Key Engineering Insights")
     md.append("")
     md.append(
-        "1. **Strict Streaming Memory Bounds**: Peak memory never exceeded the operational budget during 4B-parameter model audits and 24-layer full deep diffing."
+        "1. **Largest-Tensor Memory Scaling**: Peak anonymous heap is set by the largest single tensor "
+        "(≈1.1 GB measured at 235 MB tensors), not by total model size; process RSS additionally "
+        "includes mmap'd checkpoint pages."
     )
     md.append(
         "2. **Strided Outlier Detection Speedup**: Outlier scoring completed in sub-seconds even on 4B checkpoints, verifying Error 15's strided MAD calculation."

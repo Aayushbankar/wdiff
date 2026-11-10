@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 from safetensors import safe_open
@@ -88,13 +90,40 @@ def _parse_lora_key(key: str) -> tuple[str, str] | None:
     return layer_name, f"lora_{matrix_type}"
 
 
+def _load_adapter_alpha(path: str) -> float | None:
+    """
+    Read `lora_alpha` from adapter_config.json beside the adapter file (PEFT layout).
+
+    Returns None when the config is absent or does not carry a usable alpha,
+    preserving the previous scale-1.0 fallback.
+    """
+    config_path = Path(path).parent / "adapter_config.json"
+    if not config_path.is_file():
+        return None
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(config, dict):
+        return None
+    alpha = config.get("lora_alpha")
+    if alpha is None:
+        return None
+    try:
+        return float(alpha)
+    except (TypeError, ValueError):
+        return None
+
+
 def load_lora_adapter(path: str) -> LoRAAdapter:
     """
     Load LoRA adapter from safetensors file.
 
     Expected format: keys like "base_model.model.layers.0.self_attn.q_proj.lora_A.weight"
+    A sibling adapter_config.json (PEFT) supplies lora_alpha for alpha/r scaling.
     """
     adapter = LoRAAdapter(layers={})
+    alpha = _load_adapter_alpha(path)
 
     with safe_open(path, framework="numpy", device="cpu") as f:
         # Group tensors by layer
@@ -130,6 +159,7 @@ def load_lora_adapter(path: str) -> LoRAAdapter:
                 name=layer_name,
                 lora_A=lora_A.astype(np.float32),
                 lora_B=lora_B.astype(np.float32),
+                alpha=alpha,
             )
 
     return adapter
@@ -236,7 +266,10 @@ def merge_lora_into_model(
         layer = adapter.get_layer_for_tensor(key)
         if layer:
             merged_weights[key] = apply_lora(
-                weight, layer.lora_A, layer.lora_B, scale=layer.scale()
+                weight,
+                layer.lora_A,
+                layer.lora_B,
+                scale=layer.scale() * scale,
             )
         else:
             merged_weights[key] = weight.copy()
@@ -327,16 +360,15 @@ def diff_with_lora(
                 # Compute base weight
                 base_weight = reader_a.get_tensor(name)
 
-                # Apply LoRA
+                # Apply LoRA (adapter alpha/r scaling times the caller's --lora-scale)
                 merged_weight = apply_lora(
-                    base_weight, layer.lora_A, layer.lora_B, scale=layer.scale()
+                    base_weight,
+                    layer.lora_A,
+                    layer.lora_B,
+                    scale=layer.scale() * lora_scale,
                 )
 
                 # Compute diff
-                from wdiff.engine.metrics import MetricsBundle, compute_all_metrics
-                from wdiff.engine.spectral import compute_spectral_bundle
-                from wdiff.engine.taxonomy import classify_weight_delta
-
                 metrics = compute_all_metrics(base_weight, merged_weight)
                 diff_matrix = merged_weight - base_weight
                 spectral = compute_spectral_bundle(diff_matrix, k=16)

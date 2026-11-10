@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import re
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -18,7 +19,12 @@ from wdiff.engine.lens import (
 from wdiff.engine.metrics import MetricsBundle, compute_all_metrics
 from wdiff.engine.ring_buffer import PipelinedRingBuffer
 from wdiff.engine.rope import deinterleave_rope, is_rope_tensor
-from wdiff.engine.spectral import SpectralBundle, compute_spectral_bundle
+from wdiff.engine.spectral import (
+    SpectralBundle,
+    SubspaceGeometry,
+    compute_spectral_bundle,
+    compute_subspace_geometry,
+)
 from wdiff.engine.taxonomy import TaxonomyResult, classify_weight_delta
 from wdiff.readers import align_tensor_names, get_reader
 from wdiff.readers.gguf_reader import GGUFReader
@@ -49,6 +55,7 @@ class TensorDiffResult:
     taxonomy: TaxonomyResult | None = None
     partial_info: PartialMatchInfo | None = None
     lens: LayerLensResult | None = None
+    subspace: SubspaceGeometry | None = None
 
 
 @dataclass(slots=True)
@@ -206,10 +213,12 @@ def _try_partial_match(
     # Compute spectral/taxonomy if deep
     spectral = None
     taxonomy = None
+    subspace = None
     if deep:
         diff_matrix = common_a - common_b
         spectral = compute_spectral_bundle(diff_matrix, k=16)
         taxonomy = classify_weight_delta(diff_matrix, metrics, spectral)
+        subspace = compute_subspace_geometry(common_a, common_b, k=16)
         del diff_matrix
 
     partial_info = PartialMatchInfo(
@@ -231,7 +240,20 @@ def _try_partial_match(
         spectral=spectral,
         taxonomy=taxonomy,
         partial_info=partial_info,
+        subspace=subspace,
     )
+
+
+def _process_peak_ram_mb() -> float:
+    """Process peak RSS in MB (ru_maxrss: KiB on Linux, bytes on macOS; 0.0 if unavailable)."""
+    try:
+        import resource
+    except ImportError:  # pragma: no cover - Windows
+        return 0.0
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    if sys.platform == "darwin":
+        return peak / (1024 * 1024)
+    return peak / 1024
 
 
 def diff_models(
@@ -413,6 +435,7 @@ def diff_models(
                 spectral,
                 taxonomy,
                 lens_result,
+                subspace,
             ) in zip(shape_matched, results):
                 matched_results[canonical_name] = TensorDiffResult(
                     name=canonical_name,
@@ -423,6 +446,7 @@ def diff_models(
                     spectral=spectral,
                     taxonomy=taxonomy,
                     lens=lens_result,
+                    subspace=subspace,
                 )
                 summary.add_match(canonical_name, metrics)
                 if lens_result is not None:
@@ -471,6 +495,7 @@ def diff_models(
             tensor_results=tensor_results,
             summary=summary,
             duration_seconds=duration,
+            peak_ram_mb=round(_process_peak_ram_mb(), 2),
         )
 
 
@@ -508,6 +533,7 @@ def _run_paired_buffer(
         SpectralBundle | None,
         TaxonomyResult | None,
         LayerLensResult | None,
+        SubspaceGeometry | None,
     ]
 ]:
     """Run ring buffer with paired tensor names from different models."""
@@ -517,6 +543,7 @@ def _run_paired_buffer(
             SpectralBundle | None,
             TaxonomyResult | None,
             LayerLensResult | None,
+            SubspaceGeometry | None,
         ]
     ] = []
     total = len(names_a)
@@ -572,6 +599,7 @@ def _run_paired_buffer(
         spectral = None
         taxonomy = None
         lens_result = None
+        subspace = None
 
         run_lens = lens and wu_matrix is not None and is_down_proj_layer(canonical_name)
         if deep or run_lens:
@@ -579,6 +607,7 @@ def _run_paired_buffer(
             if deep:
                 spectral = compute_spectral_bundle(diff_matrix, k=16)
                 taxonomy = classify_weight_delta(diff_matrix, metrics, spectral)
+                subspace = compute_subspace_geometry(tensor_a, tensor_b, k=16)
             if run_lens:
                 v_size = (
                     wu_vocab_size
@@ -597,7 +626,7 @@ def _run_paired_buffer(
                     )
             del diff_matrix
 
-        results.append((metrics, spectral, taxonomy, lens_result))
+        results.append((metrics, spectral, taxonomy, lens_result, subspace))
 
         if progress_callback:
             progress_callback(i + 1, total, name_a)

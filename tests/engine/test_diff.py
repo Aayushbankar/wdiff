@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +28,11 @@ class TestDiffModels:
         assert res.summary.mean_frobenius == pytest.approx(0.0, abs=1e-6)
         assert res.summary.min_cosine_value == pytest.approx(1.0, abs=1e-6)
         assert res.duration_seconds > 0.0
+        # Peak process RSS telemetry (ru_maxrss): 0.0 only where resource is unavailable
+        if sys.platform == "win32":
+            assert res.peak_ram_mb == 0.0
+        else:
+            assert res.peak_ram_mb > 0.0
 
     def test_cross_format_identical_safetensors_and_gguf(self):
         # Adaptive RoPE parity automatically detects un-permuted vs permuted weights

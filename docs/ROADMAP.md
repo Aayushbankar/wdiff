@@ -17,7 +17,7 @@ This document outlines the version milestones, feature targets, and release crit
 - [x] Implement `src/wdiff/engine/metrics.py`: Relative Frobenius delta, Cosine similarity, Max element delta
 - [x] Implement `src/wdiff/engine/ring_buffer.py`: 2-slot prefetch queue overlapping disk I/O and CPU math
 - [x] Implement `src/wdiff/display/terminal.py`: `rich` CLI tables, progress bars, and anomaly alerts
-- [x] Unit & integration test suite verifying <500MB peak RAM on large mock weights
+- [x] Unit & integration test suite verifying streaming no-accumulation (tracemalloc peak < 35MB through the ring buffer; see `tests/integration/test_memory.py`)
 - [x] Packaging verification & CI matrix (Python 3.10, 3.11, 3.12)
 
 ---
@@ -76,7 +76,30 @@ This document outlines the version milestones, feature targets, and release crit
 
 ---
 
-### Phase 4: Public Launch, Demos & Standalone Binaries (`v0.4.0`) — NEXT 🚀
+### Phase 4: Pre-Release Engineering Audit & Hardening (`v0.3.0`) — COMPLETE ✅
+*Goal: Comprehensive reality check, vulnerability mitigation, packaging hygiene, and specification reconciliation prior to public launch.*
+
+- [x] **Milestone 4.1: CI Dependency Resolution & Packaging Security (P0)** ✅ COMPLETE
+  - Fixed GitHub Actions CI workflow in `.github/workflows/ci.yml` to use `uv sync --extra dev --python ${{ matrix.python-version }}` ensuring pytest and ruff are installed.
+  - Hardened `pyproject.toml` sdist configuration (`[tool.hatch.build.targets.sdist]`) with strict exclusions for `/.agent`, `/AGENTS.md`, `/benchmarks`, `/tests/fixtures`, and backup files, preventing internal artifacts from leaking into release tarballs.
+- [x] **Milestone 4.2: Security & Defensive Input Validation (P1)** ✅ COMPLETE
+  - Neutralized Stored Cross-Site Scripting (XSS) in HTML reports (`report.py`) by escaping layer names, adversarial vocabulary tokens (e.g., `<|im_start|>`, `<script>`), status tags, and report titles via client-side `escapeHtml()` and Python `html.escape()`. Added unit tests verifying adversarial payloads render harmlessly.
+  - Guarded `ShardedSafeTensorsReader` against path traversal attacks (`shard_path.resolve().is_relative_to(index_dir.resolve())`) preventing malicious index files from reading outside the checkpoint directory. Added regression tests in `tests/readers/test_sharded.py`.
+- [x] **Milestone 4.3: Architecture & Mathematical Documentation Reconciliation (P1)** ✅ COMPLETE
+  - Reconciled `docs/ARCHITECTURE.md` to accurately indicate that legacy PyTorch checkpoint support is planned for Phase 5 rather than currently implemented.
+  - Clarified that `diff_models()` executes paired layer comparison synchronously via `_run_paired_buffer()` to keep paired-slot memory bounded to two tensor pairs while eliminating GIL lock contention.
+  - Aligned Effective Rank formulas in `docs/ARCHITECTURE.md` and `docs/learning/02_SPECTRAL_ANALYSIS_AND_SVD.md` with `spectral.py`: Shannon spectral entropy of normalized squared singular value energy $p_i = \sigma_i^2 / \sum \sigma_j^2$, and primary direction energy $E_1 = \sigma_1^2 / \sum \sigma_i^2$.
+- [x] **Milestone 4.4: Code Hygiene & Performance Optimization (P2)** ✅ COMPLETE
+  - Removed duplicate `_format_shape` function definition in `terminal.py`.
+  - Removed triplicated serialization methods and dead `LoRAResultWrapper` fallback in `cli.py`.
+  - Hoisted per-tensor imports outside inner loop in `lora.py`.
+  - Removed unnecessary dummy delta taxonomy computation on identical tensors ($w - w$) in `inspect.py`.
+  - Cleaned untracked editor backup files (`*.bak*`).
+- [x] Full automated test suite passing (194/194 tests, 0 failures), 100% ruff clean.
+
+---
+
+### Phase 5: Public Launch, Demos & Standalone Binaries (`v0.4.0`) — NEXT 🚀
 *Goal: Execute public launch with high-visibility benchmarks and zero-dependency binaries.*
 
 - [ ] Benchmark 1: `Meta-Llama-3-8B-Instruct` vs `Llama-3-8B-Instruct-abliterated` (Demonstrate Rank-1 safety direction removal)

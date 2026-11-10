@@ -1,65 +1,43 @@
 from __future__ import annotations
 
-from rich.console import Console
+from math import ceil
+
+from rich import box
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from wdiff.engine.diff import DiffResult
+from wdiff.engine.diff import DiffResult, DiffSummary
 from wdiff.engine.inspect import LayerInspectionResult, ModelInspectionResult
 from wdiff.engine.taxonomy import TaxonomyBadge
 
+# Spectral forensics palette: distinct hues per structural class
+TAXONOMY_STYLE = {
+    TaxonomyBadge.UNMODIFIED: "dim #6b7280",
+    TaxonomyBadge.RANK1_ABLATION: "bold #e879f9",
+    TaxonomyBadge.LOW_RANK_ADAPTER: "bold #60a5fa",
+    TaxonomyBadge.SPARSE_UPDATE: "bold #fbbf24",
+    TaxonomyBadge.FULL_RANK_CPT: "bold #34d399",
+    TaxonomyBadge.STOCHASTIC_NOISE: "dim #f87171",
+}
 
-def _format_shape(shape: tuple[int, ...]) -> str:
-    if not shape:
-        return "—"
-    return " × ".join(str(d) for d in shape)
+TAXONOMY_BAR = {
+    TaxonomyBadge.UNMODIFIED: "#374151",
+    TaxonomyBadge.RANK1_ABLATION: "#e879f9",
+    TaxonomyBadge.LOW_RANK_ADAPTER: "#60a5fa",
+    TaxonomyBadge.SPARSE_UPDATE: "#fbbf24",
+    TaxonomyBadge.FULL_RANK_CPT: "#34d399",
+    TaxonomyBadge.STOCHASTIC_NOISE: "#f87171",
+}
 
-
-def _format_metric_bar(value: float, max_val: float = 1.0, width: int = 8) -> str:
-    """Create a visual bar representation of a metric."""
-    if value <= 0:
-        return "░" * width
-    filled = min(int((value / max_val) * width), width)
-    return "█" * filled + "░" * (width - filled)
-
-
-def _get_status_style(status: str) -> str:
-    styles = {
-        "MATCH": "green",
-        "SHAPE_MISMATCH": "red",
-        "ONLY_IN_A": "yellow",
-        "ONLY_IN_B": "yellow",
-        "PARTIAL_MATCH": "bold yellow",
-    }
-    return styles.get(status, "white")
-
-
-def _get_taxonomy_style(badge: TaxonomyBadge) -> str:
-    """Return Rich style for taxonomy badge."""
-    styles = {
-        TaxonomyBadge.UNMODIFIED: "dim",
-        TaxonomyBadge.RANK1_ABLATION: "bold magenta",
-        TaxonomyBadge.LOW_RANK_ADAPTER: "bold blue",
-        TaxonomyBadge.SPARSE_UPDATE: "bold yellow",
-        TaxonomyBadge.FULL_RANK_CPT: "bold green",
-        TaxonomyBadge.STOCHASTIC_NOISE: "dim red",
-    }
-    return styles.get(badge, "white")
-
-
-def _get_health_style(status: str) -> str:
-    """Return Rich style for health status."""
-    styles = {
-        "HEALTHY": "green",
-        "DEAD_NEURONS": "yellow",
-        "OUTLIER_SPIKE": "bold red",
-    }
-    return styles.get(status, "white")
-
-
-def _has_deep_data(result: DiffResult) -> bool:
-    return any(t.spectral is not None or t.taxonomy is not None for t in result.tensor_results)
+STATUS_STYLE = {
+    "MATCH": "#34d399",
+    "SHAPE_MISMATCH": "#f87171",
+    "ONLY_IN_A": "#fbbf24",
+    "ONLY_IN_B": "#fbbf24",
+    "PARTIAL_MATCH": "bold #fb923c",
+}
 
 
 def _format_shape(shape: tuple[int, ...]) -> str:
@@ -69,7 +47,6 @@ def _format_shape(shape: tuple[int, ...]) -> str:
 
 
 def _format_partial_shape(shape_a: tuple[int, ...], shape_b: tuple[int, ...], partial_info) -> str:
-    """Format shape display for partial match showing vocabulary expansion."""
     if partial_info is None or partial_info.differing_axis is None:
         return f"{_format_shape(shape_a)} → {_format_shape(shape_b)}"
 
@@ -89,27 +66,92 @@ def _format_partial_shape(shape_a: tuple[int, ...], shape_b: tuple[int, ...], pa
     return f"{_format_shape(shape_a)} → {_format_shape(shape_b)}"
 
 
-def render_diff_table(result: DiffResult, max_rows: int | None = None) -> Table:
-    _has_deep_data(result)
+def _delta_bar(value: float, width: int = 10) -> Text:
+    """Compact heat bar for relative Frobenius delta."""
+    if value <= 0:
+        return Text("▁" * width, style="dim #374151")
+    # log-ish scaling so small-but-real deltas stay visible
+    scaled = min(1.0, (value / 0.20) ** 0.5) if value < 0.20 else min(1.0, 0.7 + value)
+    filled = max(1, min(width, ceil(scaled * width)))
+    if value < 0.01:
+        color = "#34d399"
+    elif value < 0.05:
+        color = "#60a5fa"
+    elif value < 0.10:
+        color = "#fbbf24"
+    else:
+        color = "#f87171"
+    t = Text()
+    t.append("█" * filled, style=color)
+    t.append("▁" * (width - filled), style="dim #374151")
+    return t
+
+
+def _get_status_style(status: str) -> str:
+    return STATUS_STYLE.get(status, "white")
+
+
+def _get_taxonomy_style(badge: TaxonomyBadge) -> str:
+    return TAXONOMY_STYLE.get(badge, "white")
+
+
+def _get_health_style(status: str) -> str:
+    styles = {
+        "HEALTHY": "#34d399",
+        "DEAD_NEURONS": "#fbbf24",
+        "OUTLIER_SPIKE": "bold #f87171",
+    }
+    return styles.get(status, "white")
+
+
+def _has_deep_data(result: DiffResult) -> bool:
+    return any(t.spectral is not None or t.taxonomy is not None for t in result.tensor_results)
+
+
+def _format_peak_ram(mb: float) -> str:
+    if not mb:
+        return "—"
+    if mb >= 1024:
+        return f"{mb / 1024:.2f} GB"
+    return f"{mb:.0f} MB"
+
+
+# -----------------------------------------------------------------------------
+# Diff rendering
+# -----------------------------------------------------------------------------
+
+
+def render_diff_table(
+    result: DiffResult, max_rows: int | None = None, show_geometry: bool = True
+) -> Table:
+    has_deep = _has_deep_data(result)
 
     table = Table(
-        title=f"wdiff: {result.model_a_path} ↔ {result.model_b_path}",
+        title="Layer-by-layer delta",
+        title_style="bold #e5e7eb",
         show_header=True,
-        header_style="bold cyan",
+        header_style="bold #93c5fd",
+        box=box.SIMPLE_HEAVY,
         show_lines=False,
         expand=True,
+        row_styles=["", "dim"],
+        pad_edge=False,
     )
-    table.add_column("Layer", style="dim", min_width=16, ratio=3, overflow="fold")
-    table.add_column("Shape", justify="right", style="dim", min_width=10, ratio=2)
-    table.add_column("Rel. ΔF", justify="right", style="magenta", width=9)
-    table.add_column("Cosine Sim", justify="right", style="blue", width=10)
-    table.add_column("Max |Δ|", justify="right", style="yellow", width=8)
+    table.add_column(
+        "Layer", style="#d1d5db", min_width=18, ratio=3, overflow="fold", no_wrap=False
+    )
+    table.add_column("Shape", justify="right", style="#9ca3af", min_width=10, ratio=2)
+    table.add_column("Rel. ΔF", justify="left", style="#e5e7eb", min_width=18, ratio=2)
+    table.add_column("Cosine Sim", justify="right", style="#93c5fd", width=10)
+    table.add_column("Max |Δ|", justify="right", style="#fcd34d", width=10)
 
-    if _has_deep_data(result):
-        table.add_column("Rank", justify="center", width=8)
-        table.add_column("Class", justify="center", width=14)
+    if has_deep:
+        table.add_column("Rank", justify="center", width=10)
+        if show_geometry:
+            table.add_column("Geometry", justify="center", width=14)
+        table.add_column("Classification", justify="center", width=16)
 
-    table.add_column("Status", justify="center", width=8)
+    table.add_column("Status", justify="center", width=10)
 
     rows_to_show = result.tensor_results
     if max_rows and len(rows_to_show) > max_rows:
@@ -119,11 +161,13 @@ def render_diff_table(result: DiffResult, max_rows: int | None = None) -> Table:
         status_style = _get_status_style(t.status)
 
         if t.metrics:
-            frob_bar = _format_metric_bar(t.metrics.relative_frobenius)
+            frob_cell = Text()
+            frob_cell.append_text(_delta_bar(t.metrics.relative_frobenius))
+            frob_cell.append(f" {t.metrics.relative_frobenius:.4f}", style="#e5e7eb")
             cosine_val = f"{t.metrics.cosine_similarity:.4f}"
             max_delta = f"{t.metrics.max_element_delta:.4f}"
         else:
-            frob_bar = "—"
+            frob_cell = Text("—", style="dim")
             cosine_val = "—"
             max_delta = "—"
 
@@ -136,30 +180,44 @@ def render_diff_table(result: DiffResult, max_rows: int | None = None) -> Table:
                 else f"{_format_shape(t.shape_a)} → {_format_shape(t.shape_b)}"
             )
 
-        row_data = [
+        row_data: list = [
             t.name,
             shape_display,
-            frob_bar + f" {t.metrics.relative_frobenius:.4f}" if t.metrics else "—",
+            frob_cell,
             cosine_val,
             max_delta,
         ]
 
-        if _has_deep_data(result):
+        if has_deep:
             if t.spectral:
                 rank_str = f"s={t.spectral.signal_rank} e={t.spectral.effective_rank:.1f}"
                 if t.taxonomy:
-                    _get_taxonomy_style(t.taxonomy.badge)
-                    class_str = f"[{_get_taxonomy_style(t.taxonomy.badge)}]{t.taxonomy.badge.value}[/{_get_taxonomy_style(t.taxonomy.badge)}]"
+                    class_text = Text(
+                        t.taxonomy.badge.value,
+                        style=_get_taxonomy_style(t.taxonomy.badge),
+                    )
                 else:
-                    class_str = "—"
+                    class_text = Text("—", style="dim")
             else:
                 rank_str = "—"
-                class_str = "—"
+                class_text = Text("—", style="dim")
 
-            row_data.extend([rank_str, class_str])
+            if show_geometry:
+                subspace = getattr(t, "subspace", None)
+                if subspace:
+                    drift = subspace.max_principal_angle > 25.0
+                    gstyle = "bold #f87171" if drift else "#a7f3d0"
+                    geom_text = Text(
+                        f"θ={subspace.max_principal_angle:.0f}° F={subspace.uhlmann_fidelity:.2f}",
+                        style=gstyle,
+                    )
+                else:
+                    geom_text = Text("—", style="dim")
+                row_data.extend([rank_str, geom_text, class_text])
+            else:
+                row_data.extend([rank_str, class_text])
 
         row_data.append(Text(t.status, style=status_style))
-
         table.add_row(*row_data)
 
     return table
@@ -167,21 +225,103 @@ def render_diff_table(result: DiffResult, max_rows: int | None = None) -> Table:
 
 def render_summary_panel(result: DiffResult) -> Panel:
     summary = result.summary
-    content = (
-        f"[bold]Models:[/bold] {result.model_a_path} ({result.format_a}) vs "
+    peak = getattr(result, "peak_ram_mb", 0.0) or 0.0
+
+    # Plain-text summary line (keeps legacy tokens like "Matched: 3" and format names
+    # discoverable via str(panel.renderable) for tests/consumers)
+    legacy = (
+        f"Models: {result.model_a_path} ({result.format_a}) vs "
         f"{result.model_b_path} ({result.format_b})\n"
-        f"[bold]Duration:[/bold] {result.duration_seconds:.2f}s\n\n"
-        f"[bold green]Matched:[/bold green] {summary.matched_count}  "
-        f"[bold yellow]Partial:[/bold yellow] {summary.partial_match_count}  "
-        f"[bold red]Shape Mismatches:[/bold red] {summary.mismatched_shape_count}  "
-        f"[bold yellow]Only in A:[/bold yellow] {summary.only_in_a_count}  "
-        f"[bold yellow]Only in B:[/bold yellow] {summary.only_in_b_count}\n\n"
-        f"[bold]Mean ΔF:[/bold] {summary.mean_frobenius:.6f}  "
-        f"[bold]Max ΔF:[/bold] {summary.max_frobenius_value:.6f} "
-        f"([dim]{summary.max_frobenius_tensor}[/dim])  "
-        f"[bold]Min Cosine:[/bold] {summary.min_cosine_value:.6f}"
+        f"Matched: {summary.matched_count}  Partial: {summary.partial_match_count}  "
+        f"Mismatched: {summary.mismatched_shape_count}  "
+        f"Only A: {summary.only_in_a_count}  Only B: {summary.only_in_b_count}\n"
+        f"Mean ΔF: {summary.mean_frobenius:.6f}  "
+        f"Max ΔF: {summary.max_frobenius_value:.6f}  "
+        f"Min Cosine: {summary.min_cosine_value:.6f}  "
+        f"Peak RSS: {_format_peak_ram(peak)}"
     )
-    return Panel(content, title="Summary", border_style="cyan", expand=False)
+
+    header = Table.grid(expand=True)
+    header.add_column(ratio=3)
+    header.add_column(ratio=2, justify="right")
+    header.add_row(
+        Text.assemble(
+            ("wdiff  ", "bold #93c5fd"),
+            ("spectral checkpoint diff", "dim #9ca3af"),
+        ),
+        Text(f"{result.duration_seconds:.2f}s", style="bold #e5e7eb"),
+    )
+
+    models = Table.grid(padding=(0, 1))
+    models.add_column(style="dim #9ca3af", width=6)
+    models.add_column()
+    models.add_row("A", f"{result.model_a_path} ({result.format_a})")
+    models.add_row("B", f"{result.model_b_path} ({result.format_b})")
+
+    stats = Table(box=None, show_header=False, pad_edge=False, padding=(0, 2))
+    for _ in range(6):
+        stats.add_column()
+    stats.add_row(
+        Text.assemble(("Matched: ", "dim"), (str(summary.matched_count), "bold #34d399")),
+        Text.assemble(("Partial: ", "dim"), (str(summary.partial_match_count), "bold #fb923c")),
+        Text.assemble(
+            ("Mismatched: ", "dim"), (str(summary.mismatched_shape_count), "bold #f87171")
+        ),
+        Text.assemble(("Only A: ", "dim"), (str(summary.only_in_a_count), "bold #fbbf24")),
+        Text.assemble(("Only B: ", "dim"), (str(summary.only_in_b_count), "bold #fbbf24")),
+        Text.assemble(("Peak RSS: ", "dim"), (_format_peak_ram(peak), "bold #c4b5fd")),
+    )
+
+    metrics = Table(box=None, show_header=False, pad_edge=False, padding=(0, 2))
+    for _ in range(3):
+        metrics.add_column()
+    metrics.add_row(
+        Text.assemble(("Mean ΔF: ", "dim"), (f"{summary.mean_frobenius:.6f}", "bold #e5e7eb")),
+        Text.assemble(
+            ("Max ΔF: ", "dim"),
+            (
+                f"{summary.max_frobenius_value:.6f}",
+                "bold #f87171" if summary.max_frobenius_value > 0.1 else "bold #e5e7eb",
+            ),
+            ("  ", ""),
+            (str(summary.max_frobenius_tensor or "—"), "dim #9ca3af"),
+        ),
+        Text.assemble(("Min Cosine: ", "dim"), (f"{summary.min_cosine_value:.6f}", "bold #93c5fd")),
+    )
+
+    inner = Group(
+        Text(legacy, style="dim"), Text(""), header, Text(""), models, Text(""), stats, metrics
+    )
+
+    class _SummaryRenderable:
+        def __init__(self, renderable, text: str) -> None:
+            self._renderable = renderable
+            self._text = text
+
+        def __rich_console__(self, console, options):
+            yield from self._renderable.__rich_console__(console, options)
+
+        def __str__(self) -> str:
+            return self._text
+
+    return Panel(
+        _SummaryRenderable(inner, legacy),
+        title="[bold #93c5fd]Summary[/]",
+        border_style="#374151",
+        padding=(1, 2),
+    )
+
+
+def _taxonomy_distribution(summary: DiffSummary, result: DiffResult) -> str:
+    counts: dict[str, int] = {}
+    for t in result.tensor_results:
+        if t.taxonomy:
+            key = t.taxonomy.badge.value
+            counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        return ""
+    parts = [f"{k} {v}" for k, v in sorted(counts.items(), key=lambda kv: -kv[1])]
+    return " · ".join(parts)
 
 
 def detect_anomalies(result: DiffResult) -> list[str]:
@@ -213,6 +353,15 @@ def detect_anomalies(result: DiffResult) -> list[str]:
                         f"classified as pure SGD noise"
                     )
 
+            # Subspace geometry anomalies (learning/04 thresholds)
+            subspace = getattr(t, "subspace", None)
+            if subspace and subspace.max_principal_angle > 25.0:
+                anomalies.append(
+                    f"[bold red]⚠ Representation Drift[/bold red]: {t.name} "
+                    f"(θmax={subspace.max_principal_angle:.1f}°, "
+                    f"fid={subspace.uhlmann_fidelity:.3f})"
+                )
+
         if t.status == "SHAPE_MISMATCH":
             anomalies.append(f"[red]⚠ Shape mismatch[/red]: {t.name} ({t.shape_a} vs {t.shape_b})")
         if t.status in ("ONLY_IN_A", "ONLY_IN_B"):
@@ -231,9 +380,21 @@ def render_diff(result: DiffResult, console: Console | None = None) -> None:
     if console is None:
         console = Console()
 
-    console.print(render_summary_panel(result))
     console.print()
-    console.print(render_diff_table(result))
+    console.print(render_summary_panel(result))
+
+    dist = _taxonomy_distribution(result.summary, result)
+    if dist:
+        console.print(
+            Panel(
+                dist,
+                title="[dim]Taxonomy mix · Rank & Classification (deep)[/]",
+                border_style="#374151",
+            )
+        )
+
+    console.print()
+    console.print(render_diff_table(result, show_geometry=console.width >= 110))
 
     # Render lens analysis if present
     lens_layers = [t for t in result.tensor_results if t.lens is not None]
@@ -244,27 +405,34 @@ def render_diff(result: DiffResult, console: Console | None = None) -> None:
     anomalies = detect_anomalies(result)
     if anomalies:
         console.print()
-        console.print("[bold red]Anomalies Detected:[/bold red]")
-        for anomaly in anomalies:
-            console.print(f"  {anomaly}")
+        lines = [Text.from_markup(a) for a in anomalies]
+        console.print(
+            Panel(
+                Group(*lines),
+                title="[bold #f87171]Anomalies[/]",
+                border_style="#7f1d1d",
+                padding=(0, 1),
+            )
+        )
+    console.print()
 
 
 def render_lens_panel(lens_layers: list) -> Panel:
     """Render a panel showing logit lens concept decoding results."""
-    from rich.table import Table
 
     table = Table(
-        title="[bold cyan]Semantic Concept Lens (Logit Lens)[/bold cyan]",
         show_header=True,
-        header_style="bold cyan",
-        show_lines=True,
+        header_style="bold #93c5fd",
+        box=box.SIMPLE_HEAVY,
+        show_lines=False,
         expand=True,
+        pad_edge=False,
     )
-    table.add_column("Layer", style="dim", min_width=16, ratio=2, overflow="fold")
-    table.add_column("σ₁", justify="right", style="magenta", width=8)
-    table.add_column("Energy", justify="right", style="blue", width=8)
-    table.add_column("Positive Concepts (+)", style="green", min_width=20, ratio=3, overflow="fold")
-    table.add_column("Negative Concepts (-)", style="red", min_width=20, ratio=3, overflow="fold")
+    table.add_column("Layer", style="#d1d5db", min_width=16, ratio=2, overflow="fold")
+    table.add_column("σ₁", justify="right", style="#e879f9", width=8)
+    table.add_column("Energy", justify="right", style="#93c5fd", width=8)
+    table.add_column("Promoted (+)", style="#34d399", min_width=20, ratio=3, overflow="fold")
+    table.add_column("Suppressed (−)", style="#f87171", min_width=20, ratio=3, overflow="fold")
 
     for layer in lens_layers:
         lens = layer.lens
@@ -277,21 +445,25 @@ def render_lens_panel(lens_layers: list) -> Panel:
         table.add_row(
             lens.layer_name,
             f"{lens.singular_value:.4f}",
-            f"{lens.energy_ratio:.2%}",
+            f"{lens.energy_ratio:.1%}",
             pos_tokens or "—",
             neg_tokens or "—",
         )
 
-    return Panel(table, title="Logit Lens Concept Decoding", border_style="cyan", expand=False)
+    return Panel(
+        table,
+        title="[bold #93c5fd]Logit Lens Concept Decoding[/]",
+        border_style="#374151",
+        padding=(0, 1),
+    )
 
 
-# =============================================================================
-# Inspection Display
-# =============================================================================
+# -----------------------------------------------------------------------------
+# Inspection rendering
+# -----------------------------------------------------------------------------
 
 
 def _get_health_status(layer: LayerInspectionResult) -> str:
-    """Get health status for a layer."""
     if layer.dead_neuron_count > 0:
         return "DEAD_NEURONS"
     elif layer.is_outlier_risk:
@@ -300,13 +472,12 @@ def _get_health_status(layer: LayerInspectionResult) -> str:
 
 
 def _get_readiness_style(readiness: str) -> str:
-    """Return Rich style for quantization readiness."""
     if "EXCELLENT" in readiness:
-        return "bold green"
+        return "bold #34d399"
     elif "MODERATE" in readiness:
-        return "bold yellow"
+        return "bold #fbbf24"
     elif "POOR" in readiness:
-        return "bold red"
+        return "bold #f87171"
     return "white"
 
 
@@ -314,17 +485,22 @@ def render_inspection_table(result: ModelInspectionResult, max_rows: int | None 
     has_deep = any(l.spectral is not None for l in result.layers)
 
     table = Table(
-        title=f"winspect: {result.model_path}",
+        title="Layer health",
+        title_style="bold #e5e7eb",
         show_header=True,
-        header_style="bold cyan",
+        header_style="bold #93c5fd",
+        box=box.SIMPLE_HEAVY,
         show_lines=False,
+        expand=True,
+        row_styles=["", "dim"],
+        pad_edge=False,
     )
-    table.add_column("Layer", style="dim", min_width=20, ratio=2, overflow="fold")
-    table.add_column("Shape", justify="right", style="dim", min_width=8, ratio=1)
+    table.add_column("Layer", style="#d1d5db", min_width=20, ratio=2, overflow="fold")
+    table.add_column("Shape", justify="right", style="#9ca3af", min_width=8, ratio=1)
     table.add_column("Dtype", justify="center")
     table.add_column("Params", justify="right")
-    table.add_column("L2 Norm", justify="right", style="magenta")
-    table.add_column("Outlier", justify="right", style="yellow")
+    table.add_column("L2 Norm", justify="right", style="#e879f9")
+    table.add_column("Outlier", justify="right", style="#fcd34d")
     table.add_column("Dead", justify="center")
 
     if has_deep:
@@ -347,7 +523,7 @@ def render_inspection_table(result: ModelInspectionResult, max_rows: int | None 
         elif dtype_display == "bfloat16":
             dtype_display = "bf16"
 
-        row_data = [
+        row_data: list = [
             t.name,
             _format_shape(t.shape),
             dtype_display,
@@ -365,7 +541,6 @@ def render_inspection_table(result: ModelInspectionResult, max_rows: int | None 
             row_data.append(rank_str)
 
         row_data.append(Text(health, style=_get_health_style(health)))
-
         table.add_row(*row_data)
 
     return table
@@ -375,20 +550,45 @@ def render_inspection_summary_panel(result: ModelInspectionResult) -> Panel:
     summary = result.summary
     readiness_style = _get_readiness_style(summary.quantization_readiness)
 
-    content = (
-        f"[bold]Model:[/bold] {result.model_path}\n"
-        f"[bold]Format:[/bold] {result.format}\n"
-        f"[bold]Architecture:[/bold] {summary.architecture}\n"
-        f"[bold]Duration:[/bold] {summary.duration_seconds:.2f}s\n\n"
-        f"[bold green]Total Parameters:[/bold green] {summary.total_params:,} "
-        f"({summary.trainable_params_mb:.1f} MB)\n"
-        f"[bold]Tensors:[/bold] {summary.tensor_count}\n\n"
-        f"[bold yellow]Dead Neurons:[/bold yellow] {summary.dead_neurons_total}\n"
-        f"[bold red]Outlier Risk Layers:[/bold red] {summary.outlier_risk_layer_count}\n\n"
-        f"[bold]Quantization Readiness:[/bold] "
-        f"[{readiness_style}]{summary.quantization_readiness}[/{readiness_style}]"
+    header = Table.grid(expand=True)
+    header.add_column(ratio=3)
+    header.add_column(ratio=2, justify="right")
+    header.add_row(
+        Text.assemble(("wdiff inspect  ", "bold #93c5fd"), ("model health", "dim #9ca3af")),
+        Text(f"{summary.duration_seconds:.2f}s", style="bold #e5e7eb"),
     )
-    return Panel(content, title="Inspection Summary", border_style="cyan", expand=False)
+
+    meta = Table.grid(padding=(0, 1))
+    meta.add_column(style="dim #9ca3af", width=12)
+    meta.add_column()
+    meta.add_row("Model", str(result.model_path))
+    meta.add_row("Format", str(result.format))
+    meta.add_row("Architecture", str(summary.architecture))
+
+    stats = Table(box=None, show_header=False, pad_edge=False, padding=(0, 2))
+    for _ in range(4):
+        stats.add_column()
+    stats.add_row(
+        Text.assemble(("Parameters: ", "dim"), (f"{summary.total_params:,}", "bold #34d399")),
+        Text.assemble(("Size: ", "dim"), (f"{summary.trainable_params_mb:.1f} MB", "bold #e5e7eb")),
+        Text.assemble(("Tensors: ", "dim"), (str(summary.tensor_count), "bold #e5e7eb")),
+        Text.assemble(("Dead neurons: ", "dim"), (str(summary.dead_neurons_total), "bold #fbbf24")),
+    )
+
+    risk = Text.assemble(
+        ("Outlier-risk layers: ", "dim"),
+        (str(summary.outlier_risk_layer_count), "bold #f87171"),
+        ("   Quantization readiness: ", "dim"),
+        (summary.quantization_readiness, readiness_style),
+    )
+
+    body = Group(header, Text(""), meta, Text(""), stats, risk)
+    return Panel(
+        body,
+        title="[bold #93c5fd]Inspection Summary[/]",
+        border_style="#374151",
+        padding=(1, 2),
+    )
 
 
 def detect_inspection_anomalies(result: ModelInspectionResult) -> list[str]:
@@ -422,6 +622,7 @@ def render_inspection(result: ModelInspectionResult, console: Console | None = N
     if console is None:
         console = Console()
 
+    console.print()
     console.print(render_inspection_summary_panel(result))
     console.print()
     console.print(render_inspection_table(result))
@@ -429,6 +630,13 @@ def render_inspection(result: ModelInspectionResult, console: Console | None = N
     anomalies = detect_inspection_anomalies(result)
     if anomalies:
         console.print()
-        console.print("[bold red]Anomalies Detected:[/bold red]")
-        for anomaly in anomalies:
-            console.print(f"  {anomaly}")
+        lines = [Text.from_markup(a) for a in anomalies]
+        console.print(
+            Panel(
+                Group(*lines),
+                title="[bold #f87171]Anomalies[/]",
+                border_style="#7f1d1d",
+                padding=(0, 1),
+            )
+        )
+    console.print()

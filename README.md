@@ -3,19 +3,24 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Peak RAM](https://img.shields.io/badge/Peak%20RAM-%3C500MB%20(CPU)-brightgreen.svg)](#-memory-efficiency)
-[![Tests: 186 Passed](https://img.shields.io/badge/tests-186%20passed-success.svg)](tests/)
+[![Streaming heap](https://img.shields.io/badge/streaming%20heap-bounded%20by%20largest%20tensor-brightgreen.svg)](#-real-world-benchmark-results)
+[![Tests: 207 Passed](https://img.shields.io/badge/tests-207%20passed-success.svg)](tests/)
 
 **`wdiff`** is an ultra-fast, memory-bounded CLI and visual differential analyzer for Large Language Model checkpoints (`.safetensors`, `.gguf`, and sharded indices).
 
-It lets you inspect, measure, translate, and visualize model weights — detecting fine-tuning shifts, LoRA adapters, vocabulary expansions, safety abliterations, dead neurons, and quantization risks — **on consumer hardware with strictly bounded memory (<500MB RAM)**.
+It lets you inspect, measure, translate, and visualize model weights — detecting fine-tuning shifts, LoRA adapters, vocabulary expansions, safety abliterations, dead neurons, and quantization risks — **on consumer hardware with bounded streaming memory (peak anonymous heap scales with the largest tensor — measured ≈1.1 GB for a 235 MB tensor pair; see [benchmark results](#-real-world-benchmark-results) for process RSS on multi-GB checkpoints)**.
+
+> ⚠️ **Name collision notice**: the package name `wdiff` on PyPI belongs to an unrelated
+> Spanish spelling analyzer — **this project is not published there yet**. Until it is
+> released under a distinct name, install directly from GitHub (below). Do not use
+> `pip install wdiff` / `uvx wdiff`; they will install the wrong tool.
 
 ```bash
-# Instant execution with uv (no install or venv required)
-uvx wdiff base-model.gguf finetuned-model.gguf
+# Instant execution straight from GitHub with uv (no install or venv required)
+uvx --from git+https://github.com/Aayushbankar/wdiff wdiff base-model.gguf finetuned-model.gguf
 
-# Or standard pip install
-pip install wdiff
+# Or standard pip install from GitHub
+pip install "git+https://github.com/Aayushbankar/wdiff.git"
 
 # Compare two models with SVD rank analysis and semantic concept decoding
 wdiff modelA.safetensors modelB.gguf --deep --lens --report diff_report.html
@@ -101,17 +106,19 @@ Tested across **19.6 Billion parameters** on a standard consumer CPU (Linux x86_
 
 ### Installation
 
-```bash
-# Using uv (recommended, instant execution)
-uvx wdiff --help
+> ⚠️ PyPI's `wdiff` name is taken by an unrelated tool (see notice above). Use GitHub installs until this project publishes under a distinct name.
 
-# Using pip
-pip install wdiff
+```bash
+# Using uv (recommended, instant execution from GitHub)
+uvx --from git+https://github.com/Aayushbankar/wdiff wdiff --help
+
+# Using pip from GitHub
+pip install "git+https://github.com/Aayushbankar/wdiff.git"
 
 # Clone for local development
 git clone https://github.com/Aayushbankar/wdiff.git
 cd wdiff
-pip install -e ".[dev]"
+uv sync --extra dev   # or: pip install -e ".[dev]"
 ```
 
 ### CLI Command Guide
@@ -156,7 +163,7 @@ wdiff modelA.gguf modelB.gguf --json > diff.json
 
 ## 🛠️ Architecture & Documentation
 
-- [**Technical Architecture & Streaming Buffers**](docs/ARCHITECTURE.md): Zero-copy `mmap`, pipelined ring buffer, and format abstraction.
+- [**Technical Architecture & Streaming Buffers**](docs/ARCHITECTURE.md): Zero-copy `mmap`, bounded synchronous streaming buffer (optional threaded prefetch), and format abstraction.
 - [**Engineering Errors & Fixes Ledger**](docs/ERRORS_AND_FIXES.md): Forensic record of all 23 bugs, edge cases, and architectural fixes.
 - [**Research & Forensic Demos**](docs/RESEARCH_DEMOS.md): Mathematical proofs of safety abliteration and successor model delta geometry.
 - [**Development Roadmap**](docs/ROADMAP.md): Complete milestone ledger and future native compilation plans.

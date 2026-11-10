@@ -1,7 +1,7 @@
 # `wdiff` v0.3.0 Real-World Benchmark Report
 
 **Execution Timestamp**: 2026-11-09 08:33:36 UTC
-**Hardware Platform**: Linux x86_64, CPU Streaming Memory Bound (<500MB RAM)
+**Hardware Platform**: Linux x86_64, CPU (process peak RSS reported per run)
 
 ---
 
@@ -9,8 +9,8 @@
 
 `wdiff` was executed across **9 distinct local model checkpoints** spanning architectures from 360M to 4B parameters (SmolLM2, Qwen2.5, Qwen3.5, LFM3, K2-Horizon, and Stable Diffusion).
 
-- **Peak Memory Guarantee**: Maintained strict streaming memory bounds across all inspections and differential runs.
-- **Throughput**: Achieved up to **100+ Million parameters/second** CPU inspection throughput.
+- **Peak Memory**: Process RSS on Benchmark 1 peaked at **4,302 MB** (dominated by mmap'd checkpoint pages plus the paired tensor heap). The tensor heap itself scales with the largest single tensor — measured ≈1.1 GB for a 235 MB tensor pair (see `docs/ARCHITECTURE.md` §Memory Bounding Guarantee).
+- **Throughput**: Achieved up to **61.0 Million parameters/second** CPU inspection throughput (SmolLM2-1.7B; full table in §3).
 - **Abliteration Forensic Detection**: Successfully isolated low-rank uncensored steerings on real model pairs (`LFM3-1.7B` vs `LFM3-1.7B-Uncensored`), quantifying rank-1 spectral dominance and decoding semantic concept directions.
 
 ---
@@ -72,6 +72,6 @@
 
 ## 4. Key Engineering Insights
 
-1. **Strict Streaming Memory Bounds**: Peak memory never exceeded the operational budget during 4B-parameter model audits and 24-layer full deep diffing.
+1. **Largest-Tensor Memory Scaling**: Peak anonymous heap is set by the largest single tensor (≈1.1 GB measured at 235 MB tensors), not by total model size; process RSS additionally includes mmap'd checkpoint pages (4.3 GB peak on the 2×1 GB GGUF deep+logit-lens diff).
 2. **Strided Outlier Detection Speedup**: Outlier scoring completed in sub-seconds even on 4B checkpoints, verifying Error 15's strided MAD calculation.
 3. **Logit Lens Fidelity**: Decoded semantic concept shifts on FFN layers with zero auxiliary GPU runtime or PyTorch overhead.

@@ -110,6 +110,10 @@ class TestHTMLReportGeneration:
         # Check for spectral data
         assert "signal_rank" in html_content.lower() or "Signal Rank" in html_content
         assert "effective_rank" in html_content.lower() or "Effective Rank" in html_content
+        # Check for subspace geometry columns (Grassmannian theta-max + Uhlmann fidelity)
+        assert "θmax°" in html_content
+        assert "uhlmann_fidelity" in html_content
+        assert "Fidelity" in html_content
 
 
 class TestCLIReportFlag:
@@ -128,3 +132,118 @@ class TestCLIReportFlag:
 
         out, _ = capsys.readouterr()
         assert "Report saved" in out or "report" in out.lower()
+
+
+class TestHTMLReportSecurity:
+    def test_report_title_xss_sanitization(self, tmp_path):
+        from wdiff.display.report import generate_html_report
+
+        fixtures = Path(__file__).parent.parent / "fixtures"
+        model_a = str(fixtures / "model_a.safetensors")
+        model_b = str(fixtures / "model_b.safetensors")
+
+        result = diff_models(model_a, model_b)
+        report_path = tmp_path / "xss_report.html"
+
+        malicious_title = '<script>alert("xss")</script>'
+        generate_html_report(result, report_path, title=malicious_title)
+
+        content = report_path.read_text()
+        assert "<title>&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;</title>" in content
+        assert "<h1>&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;</h1>" in content
+        assert "<h1><script>" not in content
+        assert "function escapeHtml(str)" in content
+
+    def test_adversarial_tokens_and_layer_names_escaped(self, tmp_path):
+        from wdiff.display.report import generate_html_report
+        from wdiff.engine.diff import DiffResult, DiffSummary, TensorDiffResult
+        from wdiff.engine.lens import LayerLensResult, TokenConcept
+
+        adversarial_result = DiffResult(
+            model_a_path="<script>alert(1)</script>",
+            model_b_path="normal_b",
+            format_a="safetensors",
+            format_b="safetensors",
+            tensor_results=[
+                TensorDiffResult(
+                    name="<img src=x onerror=alert(1)>",
+                    shape_a=(10, 10),
+                    shape_b=(10, 10),
+                    status="MATCH",
+                    metrics=None,
+                    spectral=None,
+                    taxonomy=None,
+                    partial_info=None,
+                    lens=LayerLensResult(
+                        layer_name="layer.0",
+                        canonical_name="layer.0",
+                        positive_tokens=[
+                            TokenConcept(token_id=1, token="<|im_start|>", logit=5.0),
+                            TokenConcept(
+                                token_id=2, token="<script>alert('token')</script>", logit=4.0
+                            ),
+                        ],
+                        negative_tokens=[
+                            TokenConcept(token_id=3, token="<unk>", logit=-3.0),
+                        ],
+                        singular_value=1.0,
+                        energy_ratio=0.9,
+                    ),
+                )
+            ],
+            summary=DiffSummary(
+                matched_count=1,
+                partial_match_count=0,
+                mismatched_shape_count=0,
+                only_in_a_count=0,
+                only_in_b_count=0,
+                lens_analyzed_count=1,
+                mean_frobenius=0.0,
+                max_frobenius_tensor=None,
+                max_frobenius_value=0.0,
+                min_cosine_value=1.0,
+            ),
+            duration_seconds=0.1,
+        )
+
+        report_path = tmp_path / "adversarial_tokens_report.html"
+        generate_html_report(adversarial_result, report_path, title="<script>alert(1)</script>")
+        content = report_path.read_text()
+
+        assert "escapeHtml(row.name)" in content
+        assert "escapeHtml(tc.token)" in content
+        assert "function escapeHtml(str)" in content
+        assert "<h1><script>alert(1)</script>" not in content
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;" in content
+        assert "<|im_start|>" in content  # present in JSON data table
+
+    def test_inspection_report_single_escaping(self, tmp_path):
+        from wdiff.display.report import generate_html_report
+        from wdiff.engine.inspect import InspectionSummary, ModelInspectionResult
+
+        summary = InspectionSummary(
+            total_params=100,
+            trainable_params_mb=0.1,
+            architecture="test",
+            tensor_count=1,
+            dead_neurons_total=0,
+            outlier_risk_layer_count=0,
+            quantization_readiness="READY",
+            duration_seconds=1.0,
+            mean_frobenius=0.0,
+            min_cosine_value=1.0,
+        )
+        res = ModelInspectionResult(
+            model_path="test.safetensors",
+            format="safetensors",
+            summary=summary,
+            layers=[],
+        )
+
+        report_path = tmp_path / "inspection_xss.html"
+        generate_html_report(res, report_path, title="<script>alert('inspect')</script>")
+        content = report_path.read_text()
+
+        assert "<title>&lt;script&gt;alert(&#x27;inspect&#x27;)&lt;/script&gt;</title>" in content
+        assert "&amp;lt;script" not in content
+        assert "<script>alert" not in content

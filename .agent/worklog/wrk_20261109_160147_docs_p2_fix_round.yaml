@@ -1,0 +1,79 @@
+work_record:
+  id: wrk_20261109_160147_docs_p2_fix_round
+  timestamp: '2026-11-09T16:01:47Z'
+  intent:
+    task: "Post-fix documentation corrections (500MB/100+M claims), power-law α strike, SVD harness, P2 close-out (peak_ram, LoRA α, dead extras), final verification"
+    phase: "Phase 4 — fix round / post-fix re-audit"
+    persona: general
+    model: mimo-v2.6-flash-free
+    complexity_triggers: [multi-file-doc-correctness, measured-claim-verification, p2-cleanup]
+  execution:
+    steps:
+      - "Measured peak anonymous heap on synthetic 14336x4096 FP32 pair (T=235MB): 1143MB shallow / 1168MB deep via smaps_rollup 'Anonymous:' (kernel lacks Rss_Anon)"
+      - "Derived law: peak_anon ≈ 2xT ring slots + ~0.67GB chunked-f64 metric temporaries; deep adds +T; GGUF mmap pages explain 4302MB benchmark RSS"
+      - "Corrected every <500MB claim: README badge+prose (also tests badge 194→204), ARCHITECTURE memory section rewritten with measured law + ASCII diagram sync annotation, ROADMAP:20/90, inspect.py:212 comment"
+      - "Corrected BENCHMARK_REPORT lines 4/12/13 (100+M→61.0M measured max, strict-bounds→measured RSS) and run_all_benchmarks.py generator (dynamic max throughput via inspect_data)"
+      - "STRUCK PHASE_3 power-law α bullet (not implemented): replaced with implemented indicators (effective/stable rank, MP signal rank); rejected fake k=16 Hill/MLE fit as wrong-methodology"
+      - "Committed benchmarks/svd_benchmark.py harness (executable); measured 23.7x and 29.2x vs ARPACK; appended reproduction note to docs/learning/02; kept 9.2x claim as directionally verified"
+      - "P2 peak_ram_mb: populated DiffResult.peak_ram_mb from ru_maxrss (_process_peak_ram_mb, darwin/win32 guards), serialized top-level, tests in test_diff + test_cli"
+      - "P2 LoRA α: _load_adapter_alpha reads sibling adapter_config.json (lora_alpha → scale=α/r, malformed/absent → None/1.0); wired --lora-scale into diff_with_lora and merge_lora_into_model scale (both previously ignored)"
+      - "P2 dead extras: dropped report(plotly)+pytorch(torch) from pyproject (zero src imports; HTML report stdlib-only)"
+      - "Updated FEATURE_COMPLETENESS rows 12/13/18/20/27/31/32/33/35/36 + summary tree (25/5/2/1/2/0/1=36, user-facing 30/36≈83%); AUDIT_REPORT Addendum E; RELEASE_CHECKLIST §4 numbers"
+    files_touched:
+      - README.md, docs/ARCHITECTURE.md, docs/ROADMAP.md, docs/PHASE_3_ARCHITECTURE_AND_FOUNDATIONS.md, docs/learning/02_SPECTRAL_ANALYSIS_AND_SVD.md
+      - benchmarks/BENCHMARK_REPORT.md, benchmarks/run_all_benchmarks.py, benchmarks/svd_benchmark.py (new)
+      - src/wdiff/engine/diff.py, src/wdiff/engine/lora.py, src/wdiff/engine/inspect.py, src/wdiff/cli.py, pyproject.toml
+      - tests/engine/test_diff.py, tests/engine/test_lora.py, tests/integration/test_cli.py
+      - FEATURE_COMPLETENESS.md, AUDIT_REPORT.md (Addendum E), RELEASE_CHECKLIST.md
+  artifacts:
+    - { type: file, path: benchmarks/svd_benchmark.py, verified: true }
+    - { type: file, path: AUDIT_REPORT.md, verified: true }
+    - { type: file, path: FEATURE_COMPLETENESS.md, verified: true }
+    - { type: file, path: .agent/worklog/wrk_20261109_160147_docs_p2_fix_round.yaml, verified: true }
+  learned:
+    patterns:
+      - "Kernel 7.1 smaps_rollup exposes 'Anonymous:' (not Rss_Anon) — use field name carefully when measuring anon heap"
+      - "ru_maxrss includes mmap'd file pages: benchmark RSS >> anon heap; never conflate process RSS with tensor-heap bounds"
+      - "Hardcoded report claims drift from measured tables — compute claims from data at generation time (max throughput pattern)"
+      - "Phantom-feature resolution has two honest branches: implement correctly or strike with an explicit note; shipping wrong-methodology metrics is worse than deferring"
+    dead_ends:
+      - "Full-model LFM3 memory re-measurement (OOM-killed at 1.7GB available on this box)"
+      - "Power-law α on k=16 spectrum (needs full SVD; rejected as misleading)"
+    promoted_to_skill_kb: []
+  next:
+    - "External/deferred only: PyPI name collision, Phase-5 torch reader, progress bars, MISTRAL detector, full-spectrum α if ever required"
+    - "Commit only if user explicitly requests"
+  verification:
+    claims:
+      - claim: "Full test suite green after all fixes"
+        evidence: "uv run pytest tests/ -q → 207 passed in 17.73s (+3 new regression tests: α config parse, malformed config, lora-scale linearity; peak_ram asserts)"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Coverage maintained/raised"
+        evidence: "uv run pytest --cov=wdiff → TOTAL 85% (2108 stmts)"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Lint + format clean including new harness"
+        evidence: "ruff check src/ tests/ benchmarks/ → All checks passed; ruff format --check → 43 files already formatted"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Memory claims now match measurements"
+        evidence: "smaps_rollup Anonymous peak 1143/1168MB shallow/deep on T=235MB synthetic pair; ARCHITECTURE/README/ROADMAP/BENCHMARK text updated; no live '<500MB' claims remain outside historical AUDIT_REPORT quotes"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "ARPACK speedup reproducible"
+        evidence: "benchmarks/svd_benchmark.py → 12.355s vs 0.423s (29.2x) this run; earlier run 23.7x; top-k rel err 1.04e-01"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "LoRA α and --lora-scale functional end-to-end"
+        evidence: "adapter_config.json lora_alpha=16 → layer.scale()=2.0; diff_with_lora lora_scale=2.0 doubles relative_frobenius (np.isclose rtol=1e-4); 26 focused tests pass"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "peak_ram_mb serialized in CLI JSON"
+        evidence: "test_cli asserts 'peak_ram_mb' in data and >=0.0; test_diff asserts >0 on POSIX"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Terminal width layout preserved at narrow widths after geometry column"
+        evidence: "renders at 80/100 (pre-geometry layout, Layer visible) vs 110/120 (all 9 columns) earlier this session"
+        method: RUNTIME
+        status: VERIFIED

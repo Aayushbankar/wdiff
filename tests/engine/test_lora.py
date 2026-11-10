@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from wdiff.engine.lora import (
     LoRAAdapter,
@@ -56,6 +57,62 @@ class TestLoRAAdapter:
         assert adapter.rank == 8
         assert "base_model.layers.0.self_attn.q_proj" in adapter.layers
         assert len(adapter.layers) == 4  # q, k, v, o projections
+
+    def test_load_lora_adapter_reads_alpha_from_config(self, tmp_path):
+        """Sibling adapter_config.json (PEFT) supplies lora_alpha for alpha/r scaling."""
+        from safetensors.numpy import save_file
+
+        rank = 8
+        lora_data = {
+            "base_model.layers.0.self_attn.q_proj.lora_A.weight": np.random.randn(rank, 64).astype(
+                np.float32
+            ),
+            "base_model.layers.0.self_attn.q_proj.lora_B.weight": np.random.randn(64, rank).astype(
+                np.float32
+            ),
+        }
+        adapter_path = tmp_path / "adapter_model.safetensors"
+        save_file(lora_data, str(adapter_path))
+        (tmp_path / "adapter_config.json").write_text(
+            '{"lora_alpha": 16, "r": 8}', encoding="utf-8"
+        )
+
+        adapter = load_lora_adapter(str(adapter_path))
+        layer = adapter.layers["base_model.layers.0.self_attn.q_proj"]
+        assert layer.alpha == 16.0
+        assert layer.scale() == pytest.approx(16.0 / rank)
+
+        # No sibling config -> alpha stays None, scale falls back to 1.0
+        no_cfg_dir = tmp_path / "no_config"
+        no_cfg_dir.mkdir()
+        bare_path = no_cfg_dir / "adapter.safetensors"
+        save_file(lora_data, str(bare_path))
+        bare = load_lora_adapter(str(bare_path))
+        assert bare.layers["base_model.layers.0.self_attn.q_proj"].alpha is None
+        assert bare.layers["base_model.layers.0.self_attn.q_proj"].scale() == 1.0
+
+    def test_load_lora_adapter_ignores_malformed_config(self, tmp_path):
+        """Malformed or alpha-less adapter_config.json falls back to scale 1.0."""
+        from safetensors.numpy import save_file
+
+        lora_data = {
+            "base_model.layers.0.self_attn.q_proj.lora_A.weight": np.random.randn(8, 64).astype(
+                np.float32
+            ),
+            "base_model.layers.0.self_attn.q_proj.lora_B.weight": np.random.randn(64, 8).astype(
+                np.float32
+            ),
+        }
+        adapter_path = tmp_path / "adapter.safetensors"
+        save_file(lora_data, str(adapter_path))
+
+        (tmp_path / "adapter_config.json").write_text("{not json", encoding="utf-8")
+        adapter = load_lora_adapter(str(adapter_path))
+        assert adapter.layers["base_model.layers.0.self_attn.q_proj"].alpha is None
+
+        (tmp_path / "adapter_config.json").write_text('{"r": 8}', encoding="utf-8")
+        adapter = load_lora_adapter(str(adapter_path))
+        assert adapter.layers["base_model.layers.0.self_attn.q_proj"].alpha is None
 
     def test_apply_lora_to_base_model(self):
         """Test applying LoRA adapter to base model weights."""
@@ -148,6 +205,42 @@ class TestLoRADiff:
         assert len(result.tensor_results) > 0
         # Should have matched layers with non-zero deltas
         assert any(t.metrics and t.metrics.relative_frobenius > 0 for t in result.tensor_results)
+
+    def test_lora_scale_flag_scales_delta(self, tmp_path):
+        """--lora-scale must multiply the adapter delta (previously ignored)."""
+        from safetensors.numpy import save_file
+
+        fixtures = Path(__file__).parent.parent / "fixtures"
+        base_model = str(fixtures / "model_a.safetensors")
+
+        rank = 8
+        lora_data = {
+            "layer.0.attn_q.lora_A.weight": np.random.randn(rank, 256).astype(np.float32) * 0.01,
+            "layer.0.attn_q.lora_B.weight": np.random.randn(256, rank).astype(np.float32) * 0.01,
+        }
+        adapter_path = tmp_path / "adapter.safetensors"
+        save_file(lora_data, str(adapter_path))
+
+        result_1x = diff_with_lora(
+            base_model_path=base_model,
+            lora_path=str(adapter_path),
+            lora_scale=1.0,
+            tensor_filter="layer\\.0\\.attn_q",
+        )
+        result_2x = diff_with_lora(
+            base_model_path=base_model,
+            lora_path=str(adapter_path),
+            lora_scale=2.0,
+            tensor_filter="layer\\.0\\.attn_q",
+        )
+
+        t1 = next(t for t in result_1x.tensor_results if t.metrics.relative_frobenius > 0)
+        t2 = next(t for t in result_2x.tensor_results if t.metrics.relative_frobenius > 0)
+        assert t1.name == t2.name
+        # Frobenius norm of the delta is exactly linear in scale; ||W|| is unchanged
+        assert np.isclose(
+            t2.metrics.relative_frobenius, 2.0 * t1.metrics.relative_frobenius, rtol=1e-4
+        )
 
     def test_diff_lora_vs_base_directly(self, tmp_path):
         """Test comparing base model directly with LoRA-merged model."""

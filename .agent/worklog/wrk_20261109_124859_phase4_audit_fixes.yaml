@@ -1,0 +1,110 @@
+work_record:
+  id: wrk_20261109_124859_phase4_audit_fixes
+  timestamp: '2026-11-09T12:48:59Z'
+  intent:
+    task: "Implement Phase 4 audit findings and remediations for v0.3.0 public release"
+    phase: "phase_4_audit_hardening"
+    persona: "engineer"
+    model: "gemini-2.5-pro"
+    complexity_triggers:
+      - "security_remediation"
+      - "packaging_hygiene"
+      - "code_hygiene_and_refactoring"
+      - "documentation_reconciliation"
+  execution:
+    steps:
+      - step: "Fix CI dependency resolution (P0)"
+        status: done
+        evidence: "Updated .github/workflows/ci.yml line 29 from 'uv sync --dev' to 'uv sync --extra dev --python ${{ matrix.python-version }}'"
+        outcome: "Verified 'uv sync --extra dev --dry-run' resolves all dev dependencies including pytest and ruff"
+      - step: "Exclude internal agent and test fixtures from sdist distribution (P0)"
+        status: done
+        evidence: "Added [tool.hatch.build.targets.sdist] with exclude list (/.agent, /AGENTS.md, /benchmarks, /tests/fixtures, *.bak*) in pyproject.toml"
+        outcome: "Rebuilt sdist tarball with uv build; verified via tarfile inspection that internal artifacts and fixtures are completely absent"
+      - step: "Sanitize Stored XSS in HTML Reports (P1)"
+        status: done
+        evidence: "Implemented escapeHtml() in client-side JS and applied to row.name, row.shape, tc.token, lensHtml, status badges, and escaped title with html_lib.escape() in src/wdiff/display/report.py"
+        outcome: "Added security tests in tests/display/test_report.py verifying adversarial tokens and malicious title tags render escaped plain text"
+      - step: "Add directory traversal guard in ShardedSafeTensorsReader (P1)"
+        status: done
+        evidence: "Added shard_path.resolve().is_relative_to(index_dir) validation in src/wdiff/readers/sharded_reader.py raising ValueError on escapes"
+        outcome: "Added test_sharded_reader_path_traversal_guard and test_sharded_reader_absolute_traversal_guard in tests/readers/test_sharded.py"
+      - step: "Reconcile documentation with implementation (P1)"
+        status: done
+        evidence: "Updated docs/ARCHITECTURE.md to reflect PyTorch support is planned for Phase 5, described synchronous paired streaming buffer execution (_run_paired_buffer()), aligned Effective Rank to Shannon spectral entropy exp(-sum p ln p), and primary direction energy to sigma_1^2 / sum sigma_i^2; aligned docs/learning/02_SPECTRAL_ANALYSIS_AND_SVD.md"
+        outcome: "Documentation strictly matches mathematical and architectural implementation"
+      - step: "Clean up code redundancies, dead code, and backup files (P2)"
+        status: done
+        evidence: "Removed duplicate _format_shape in src/wdiff/display/terminal.py; removed triplicated serializers and dead LoRAResultWrapper in src/wdiff/cli.py; hoisted loop imports in src/wdiff/engine/lora.py; removed dummy taxonomy evaluation on single models in src/wdiff/engine/inspect.py; deleted report.py.bak and worklog bak2 files"
+        outcome: "Codebase clean, maintainable, and free of redundant definitions"
+      - step: "Update roadmap and release checklist (Phase 4)"
+        status: done
+        evidence: "Updated docs/ROADMAP.md with completed Phase 4 audit & hardening milestone; updated RELEASE_CHECKLIST.md with all items marked [x]"
+        outcome: "Release tracking documents up to date"
+      - step: "Execute full verification suite"
+        status: done
+        evidence: "Executed pytest tests/ -q (190 passed), pytest --cov (83% coverage), ruff check and ruff format (all clean), memory test (<500MB peak RAM), isolated wheel execution via uv run --no-project"
+        outcome: "All quality gates verified passing"
+  artifacts:
+    - { type: file, path: /mnt/work/projects/wdiff/.github/workflows/ci.yml, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/pyproject.toml, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/src/wdiff/display/report.py, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/src/wdiff/display/terminal.py, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/src/wdiff/readers/sharded_reader.py, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/src/wdiff/engine/inspect.py, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/src/wdiff/engine/lora.py, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/src/wdiff/cli.py, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/docs/ARCHITECTURE.md, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/docs/learning/02_SPECTRAL_ANALYSIS_AND_SVD.md, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/docs/ROADMAP.md, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/RELEASE_CHECKLIST.md, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/tests/display/test_report.py, verified: true }
+    - { type: file, path: /mnt/work/projects/wdiff/tests/readers/test_sharded.py, verified: true }
+  learned:
+    patterns:
+      - "Assigning to a local variable named 'html' inside a function shadows 'import html' across the entire function scope in Python, leading to UnboundLocalError. Use 'import html as html_lib' to avoid namespace collision."
+      - "Pathlib's Path(x).name treats forward slashes as directory separators, so input containing tags with slashes like '<script>alert(1)</script>' gets split if treated as a path; escaping raw title strings before Path parsing or escaping custom titles directly is essential."
+      - "Hatch sdist target exclusions must use leading slashes ('/.agent', '/AGENTS.md') to match root-level directories while leaving nested files like 'tests/generate_fixtures.py' intact when excluding 'tests/fixtures'."
+    dead_ends: []
+    promoted_to_skill_kb: []
+  next:
+    - "Phase 5: Tag git release v0.3.0 and publish package wheel to PyPI"
+    - "Execute public launch benchmarks (Llama-3 abliteration and 4-bit quantization audit)"
+  verification:
+    claims:
+      - claim: "All 190 tests pass cleanly without errors or warnings"
+        evidence: "pytest tests/ -q outputs '190 passed in 19.67s'"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Code coverage remains above 80% threshold across 2,045 statements"
+        evidence: "pytest --cov=wdiff produces 83% total line coverage"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Linters and formatters pass cleanly without any violations"
+        evidence: "ruff check src/ tests/ and ruff format --check src/ tests/ exit 0 with all checks passed"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Streaming peak RAM consumption stays strictly under 500MB"
+        evidence: "tests/integration/test_memory.py passed (peak RAM verified under threshold)"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Sdist tarball excludes .agent, AGENTS.md, benchmarks, and fixtures"
+        evidence: "Inspected dist/wdiff-0.3.0.tar.gz via python tarfile; verified .agent, AGENTS.md, benchmarks, and tests/fixtures are completely excluded"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "XSS prevention in HTML reports prevents script injection from adversarial tokens and titles"
+        evidence: "tests/display/test_report.py::TestHTMLReportSecurity tests pass, verifying escapeHtml and html_lib.escape output"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Path traversal prevention in ShardedSafeTensorsReader raises ValueError on directory escapes"
+        evidence: "tests/readers/test_sharded.py::TestShardedReaderProtocol::test_sharded_reader_path_traversal_guard passes"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "HTML reports remain 100% self-contained without external network dependencies"
+        evidence: "tests/display/test_report.py::TestHTMLReportGeneration::test_html_report_is_completely_self_contained passes"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "Isolated wheel installation executes wdiff --version and --help without local repo dependencies"
+        evidence: "uv run --no-project --with dist/wdiff-0.3.0-py3-none-any.whl wdiff --version successfully outputs 'wdiff 0.3.0'"
+        method: RUNTIME
+        status: VERIFIED

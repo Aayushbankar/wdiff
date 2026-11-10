@@ -580,6 +580,51 @@ class TestShardedIntegration:
             result = diff_models(str(index_path), str(shard_path))
             assert result.summary.matched_count == 2
 
+    def test_sharded_reader_path_traversal_guard(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            index_data = {
+                "metadata": {"total_size": 1000},
+                "weight_map": {
+                    "embedding.weight": "../../etc/passwd",
+                },
+            }
+            index_path = tmpdir / "model.safetensors.index.json"
+            index_path.write_text(json.dumps(index_data))
+
+            with pytest.raises(ValueError, match="Insecure shard path detected"):
+                ShardedSafeTensorsReader(str(index_path))
+
+    def test_sharded_reader_absolute_traversal_guard(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            index_data = {
+                "metadata": {"total_size": 1000},
+                "weight_map": {
+                    "embedding.weight": "/etc/shadow",
+                },
+            }
+            index_path = tmpdir / "model.safetensors.index.json"
+            index_path.write_text(json.dumps(index_data))
+
+            with pytest.raises(ValueError, match="Insecure shard path detected"):
+                ShardedSafeTensorsReader(str(index_path))
+
+    def test_sharded_reader_directory_shard_guard(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            index_data = {
+                "metadata": {"total_size": 1000},
+                "weight_map": {
+                    "embedding.weight": ".",
+                },
+            }
+            index_path = tmpdir / "model.safetensors.index.json"
+            index_path.write_text(json.dumps(index_data))
+
+            with pytest.raises(ValueError, match="Insecure shard path detected"):
+                ShardedSafeTensorsReader(str(index_path))
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

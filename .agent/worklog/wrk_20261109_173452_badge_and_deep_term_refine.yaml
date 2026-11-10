@@ -1,0 +1,36 @@
+work_record:
+  id: wrk_20261109_173452_badge_and_deep_term_refine
+  timestamp: '2026-11-09T17:34:52Z'
+  intent:
+    task: "Post-answer consistency pass: stale README test badge + deep-path memory formula precision"
+    phase: "docs-accuracy"
+    persona: cleanup
+    model: opencode/mimo-v2.6-flash-free
+    complexity_triggers: []
+  execution:
+    steps:
+      - "grep stale '204' references across README/checklist/docs — none besides badge line"
+      - "README.md:7 badge 204 -> 207 to match suite"
+      - "docs/ARCHITECTURE.md Memory Bounding: '+1xT deep' formula refined to observed +25 MB delta (transient diff matrix overlaps freed chunk buffers)"
+      - "AUDIT_REPORT.md Addendum E.2 same refinement"
+      - "re-ran full gates"
+  artifacts:
+    - { type: file, path: README.md, verified: true }
+    - { type: file, path: docs/ARCHITECTURE.md, verified: true }
+    - { type: file, path: AUDIT_REPORT.md, verified: true }
+  learned:
+    patterns: ["badge/claim counts drift when tests land — fix in same session as test additions"]
+    dead_ends: []
+    promoted_to_skill_kb: []
+  next:
+    - "await user instruction (no commit unless explicitly requested)"
+  verification:
+    claims:
+      - claim: "207 tests pass, 85% coverage, ruff check+format clean after edits"
+        evidence: "pytest: '207 passed in 18.94s', TOTAL 2108 326 85%, 'All checks passed!', '43 files already formatted'"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "no stale 204 badge references remain"
+        evidence: "grep 204 passed/tests-204 across README/RELEASE/FEATURE/docs returned only unrelated 2048 tensor dims"
+        method: STATIC
+        status: VERIFIED

@@ -75,10 +75,12 @@ class ShardedSafeTensorsReader:
 
         self._weight_map = index_data.get("weight_map", {})
 
-        index_dir = self._index_path.parent
+        index_dir = self._index_path.parent.resolve()
         for shard_name in set(self._weight_map.values()):
-            shard_path = index_dir / shard_name
-            if not shard_path.exists():
+            shard_path = (index_dir / shard_name).resolve()
+            if not shard_path.is_relative_to(index_dir) or shard_path == index_dir:
+                raise ValueError(f"Insecure shard path detected: {shard_name}")
+            if not shard_path.exists() or not shard_path.is_file():
                 raise FileNotFoundError(f"Shard file not found: {shard_path}")
             self._shard_files[shard_name] = shard_path
 

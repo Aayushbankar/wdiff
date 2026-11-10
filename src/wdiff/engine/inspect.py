@@ -9,7 +9,6 @@ from pathlib import Path
 import numpy as np
 
 from wdiff.engine.spectral import SpectralBundle, compute_spectral_bundle
-from wdiff.engine.taxonomy import classify_weight_delta
 from wdiff.readers import get_reader
 
 
@@ -210,7 +209,7 @@ def inspect_model(
             # Get tensor info
             t_info = reader.tensor_info(name)
 
-            # Massive quantized tensor chunked streaming path to guarantee <500MB RAM
+            # Chunked streaming path (4096-row chunks) bounding the per-chunk working set
             from wdiff.readers.gguf_reader import GGUFReader
 
             if (
@@ -314,11 +313,6 @@ def inspect_model(
             taxonomy = None
             if deep:
                 spectral = compute_spectral_bundle(w, k=16)
-                # Compute metrics for taxonomy classification
-                from wdiff.engine.metrics import compute_all_metrics
-
-                metrics = compute_all_metrics(w, w)
-                taxonomy = classify_weight_delta(w - w, metrics, spectral)
 
             # Get dtype string
             dtype_str = str(w.dtype)

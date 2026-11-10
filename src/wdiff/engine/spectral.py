@@ -16,6 +16,33 @@ class SpectralBundle:
     signal_energy_ratio: float
 
 
+@dataclass(frozen=True, slots=True)
+class SubspaceGeometry:
+    """Grassmannian geometry between the top-k feature subspaces of two tensors.
+
+    Attributes:
+        principal_angles_deg: Principal angles (degrees, ascending) between
+            the top-k left-singular-vector subspaces of W_A and W_B.
+        mean_cosine: Mean cosine of the principal angles (mean subspace
+            alignment; 1.0 = identical orientation, ~0.0 = orthogonal).
+        chordal_distance: sqrt(k - ||U_A^T U_B||_F^2) — Euclidean distance
+            between the subspace projection operators.
+        geodesic_distance: sqrt(sum theta_i^2) — shortest path along the
+            Grassmannian manifold Gr(k, m).
+        max_principal_angle: Largest principal angle in degrees (the
+            drift diagnostic: >25deg = representation drift).
+        uhlmann_fidelity: Uhlmann fidelity between the two low-rank states
+            in [0, 1] (1.0 = same state, 0.0 = orthogonal).
+    """
+
+    principal_angles_deg: tuple[float, ...]
+    mean_cosine: float
+    chordal_distance: float
+    geodesic_distance: float
+    max_principal_angle: float
+    uhlmann_fidelity: float
+
+
 def fast_randomized_svd(
     A: np.ndarray,
     k: int = 16,
@@ -289,4 +316,67 @@ def compute_spectral_bundle(
         signal_rank=signal_rank,
         marcenko_pastur_edge=float(mp_edge),
         signal_energy_ratio=signal_energy_ratio,
+    )
+
+
+def compute_subspace_geometry(
+    W_A: np.ndarray,
+    W_B: np.ndarray,
+    k: int = 16,
+) -> SubspaceGeometry | None:
+    """
+    Compute Grassmannian subspace geometry between two tensors.
+
+    Computes the top-k left-singular-vector subspaces U_A, U_B of each tensor
+    (same randomized SVD used by compute_spectral_bundle) and derives:
+
+    - principal angles between the feature subspaces (learning/04: pure gain
+      keeps angles near 0 while representation drift pushes them above 25 deg),
+    - mean cosine / chordal / geodesic geometric distances,
+    - Uhlmann fidelity between the two low-rank states.
+
+    Parameters:
+        W_A, W_B: Corresponding weight tensors (same shape, ndim >= 2;
+            ndim > 2 tensors are flattened to 2D like compute_spectral_bundle)
+        k: Number of singular vectors per subspace
+
+    Returns:
+        SubspaceGeometry, or None when geometry is undefined: ndim < 2,
+        mismatched shapes, or an identically-zero tensor on either side.
+    """
+    if W_A.ndim != W_B.ndim or W_A.ndim < 2:
+        return None
+
+    matrix_a = W_A.reshape(W_A.shape[0], -1) if W_A.ndim > 2 else W_A
+    matrix_b = W_B.reshape(W_B.shape[0], -1) if W_B.ndim > 2 else W_B
+
+    if matrix_a.shape != matrix_b.shape:
+        return None
+
+    norm_a = float(np.linalg.norm(matrix_a))
+    norm_b = float(np.linalg.norm(matrix_b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return None
+
+    U_A, s_A, _ = fast_randomized_svd(matrix_a, k=k, n_iter=2, random_state=42)
+    U_B, s_B, _ = fast_randomized_svd(matrix_b, k=k, n_iter=2, random_state=42)
+
+    angles, mean_cos, chordal = subspace_principal_angles(U_A, U_B)
+    # Normalize by the SVD-truncated norms (per quantum_fidelity's contract) so
+    # truncation does not leak into the metric: identical inputs must yield 1.0.
+    tr_A = float(np.linalg.norm(s_A))
+    tr_B = float(np.linalg.norm(s_B))
+    if tr_A == 0.0 or tr_B == 0.0:
+        return None
+    fidelity = quantum_fidelity(U_A, s_A, tr_A, U_B, s_B, tr_B)
+
+    geodesic = float(np.sqrt(np.sum(np.radians(angles) ** 2)))
+
+    return SubspaceGeometry(
+        principal_angles_deg=tuple(float(a) for a in angles),
+        mean_cosine=mean_cos,
+        chordal_distance=chordal,
+        geodesic_distance=geodesic,
+        max_principal_angle=float(angles[-1]) if len(angles) else 0.0,
+        uhlmann_fidelity=fidelity,
     )

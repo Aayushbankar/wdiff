@@ -37,6 +37,8 @@ class TestCLI:
         assert "model_b" in data
         assert "summary" in data
         assert "tensors" in data
+        assert "peak_ram_mb" in data
+        assert data["peak_ram_mb"] >= 0.0
 
         summary = data["summary"]
         assert summary["matched_count"] == 9
@@ -68,3 +70,25 @@ class TestCLI:
         out, _ = capsys.readouterr()
         assert "wdiff" in out
         assert "0.3.0" in out
+
+    def test_cli_lora_json(self, capsys):
+        lora_st = str(FIXTURES_DIR / "demo_lora.safetensors")
+        code = main([MODEL_A_ST, "--lora", lora_st, "--json"])
+        assert code == 0
+        out, _ = capsys.readouterr()
+
+        data = json.loads(out)
+        assert "summary" in data
+        assert "tensors" in data
+        assert data["summary"]["matched_count"] == 9
+        assert any(t["name"] == "layer.0.attn_q.weight" and t["metrics"] for t in data["tensors"])
+
+    def test_cli_lora_report(self, capsys, tmp_path):
+        lora_st = str(FIXTURES_DIR / "demo_lora.safetensors")
+        report_file = tmp_path / "lora_report.html"
+        code = main([MODEL_A_ST, "--lora", lora_st, "--report", str(report_file)])
+        assert code == 0
+        assert report_file.exists()
+        content = report_file.read_text()
+        assert "layer.0.attn_q.weight" in content
+        assert "wdiff Report" in content

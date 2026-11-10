@@ -40,17 +40,13 @@ dependencies = [
     "gguf>=0.9.0",
     "rich>=13.0.0",
     "scipy>=1.10.0",
+    "typing-extensions>=4.8.0",
 ]
 
 [project.optional-dependencies]
-report = [
-    "plotly>=5.15.0",
-]
-pytorch = [
-    "torch>=2.0.0",
-]
 dev = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
 ]
@@ -60,6 +56,15 @@ wdiff = "wdiff.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wdiff"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.agent",
+    "/AGENTS.md",
+    "/benchmarks",
+    "/tests/fixtures",
+    "*.bak*",
+]
 
 [tool.ruff]
 line-length = 100
