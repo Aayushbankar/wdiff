@@ -58,10 +58,14 @@ packages = ["src/wdiff"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
-    "/.agent",
-    "/AGENTS.md",
-    "/benchmarks",
-    "/tests/fixtures",
+    ".agent",
+    ".agents",
+    "AGENTS.md",
+    "benchmarks",
+    "tests/fixtures",
+    "skills-lock.json",
+    "uv.lock",
+    "docs/images",
     "*.bak*",
 ]
 
