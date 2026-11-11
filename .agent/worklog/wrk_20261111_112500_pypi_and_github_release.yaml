@@ -1,0 +1,50 @@
+work_record:
+  id: wrk_20261111_112500_pypi_and_github_release
+  timestamp: '2026-11-11T05:52:00Z'
+  intent:
+    task: "Publish weight-diff v0.3.0 to PyPI and cut official GitHub release"
+    phase: "release_and_publishing"
+    persona: "engineer"
+    model: "claude-3-7-sonnet-thinking"
+    complexity_triggers:
+      - "pypi_trusted_publishing_oidc"
+      - "github_actions_release_automation"
+      - "cryptographic_provenance_attestations"
+  execution:
+    steps:
+      - step: "Configure PyPI Trusted Publishing OIDC workflow"
+        status: done
+        evidence: "Created .github/workflows/publish.yml with id-token: write permissions and pypa/gh-action-pypi-publish@release/v1"
+        outcome: "Clean, token-less credential-free automated publishing configured"
+      - step: "Tag and push release v0.3.0"
+        status: done
+        evidence: "Created git tag v0.3.0 and pushed to github.com/Aayushbankar/wdiff"
+        outcome: "Triggered publish workflow on GitHub Actions (run 42967757387)"
+      - step: "Verify PyPI release availability"
+        status: done
+        evidence: "Queried https://pypi.org/pypi/weight-diff/json -> HTTP 200, version 0.3.0 live"
+        outcome: "Package successfully published to https://pypi.org/project/weight-diff/"
+      - step: "Verify GitHub release"
+        status: done
+        evidence: "gh release view v0.3.0 returned assets weight_diff-0.3.0-py3-none-any.whl and weight_diff-0.3.0.tar.gz with attestations"
+        outcome: "Release live at https://github.com/Aayushbankar/wdiff/releases/tag/v0.3.0"
+  artifacts:
+    - { type: file, path: ".github/workflows/publish.yml", verified: true }
+  learned:
+    patterns:
+      - "PyPI project name input field does not strip leading whitespace; always ensure zero whitespace when pasting"
+      - "PyPI OIDC trusted publishing combined with softprops/action-gh-release provides seamless atomic PyPI and GitHub releases"
+    dead_ends: []
+    promoted_to_skill_kb: []
+  next:
+    - "Monitor PyPI downloads and community feedback"
+  verification:
+    claims:
+      - claim: "Package is live on PyPI under weight-diff version 0.3.0"
+        evidence: "PyPI JSON API confirms name: weight-diff, version: 0.3.0"
+        method: RUNTIME
+        status: VERIFIED
+      - claim: "GitHub Release v0.3.0 is published with wheels and attestations"
+        evidence: "gh release view v0.3.0 confirms tag v0.3.0 with all assets"
+        method: RUNTIME
+        status: VERIFIED
